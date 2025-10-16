@@ -1,7 +1,7 @@
 version: '3'
 services:
-  binder-template:
-    image: binder-template:main
+  isaacsim-template:
+    image: isaacsim-template:main
     build:
       context: ../
       dockerfile: ./binder/Dockerfile
@@ -10,7 +10,7 @@ services:
     # set group id of the host machine, so we can edit contents of the mounted volumes in the jupyterlab
     user: "jovyan:${GID}"
     # user: root
-    working_dir: /home/jovyan
+    working_dir: /home/jovyan/work
     # entrypoint: /home/jovyan/work/binder/entrypoint.sh
     command: jupyter lab --allow-root --NotebookApp.token='' --no-browser --ip=0.0.0.0
     ports:
@@ -18,5 +18,15 @@ services:
     volumes:
       - ../:/home/jovyan/work:rw
       # - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    # environment:
-    #   - DISPLAY
+      - /usr/share/vulkan/icd.d/:/etc/vulkan/icd.d
+      - ${PWD}/../binder.intel4coro.de/dev-tools:/mnt/dev-tools:rw 
+    environment:
+      # - DISPLAY
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

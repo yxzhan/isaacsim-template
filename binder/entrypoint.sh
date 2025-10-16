@@ -1,11 +1,7 @@
 #!/bin/bash
 
-# Launch the ROS core and web tools when containter starts
-source ${HOME}/workspace/ros/devel/setup.bash
-roscore &
-roslaunch --wait rvizweb rvizweb.launch &
-
-# Add other startup programs here
+# Setup ROS2 environment
+source ${ROS_PATH}/setup.bash
 
 # The following line will allow the binderhub start Jupyterlab, should be at the end of the entrypoint.
 exec "$@"

@@ -1,13 +1,13 @@
-# Dockerfile of the base image: https://github.com/IntEL4CoRo/docker-stacks/blob/master/Dockerfile
-FROM intel4coro/base-notebook:noetic
+# Dockerfile of the base image: https://github.com/IntEL4CoRo/jupyter-ros2
+FROM intel4coro/jupyter-ros2:jazzy-py3.12
 
-# Path to the default ROS workspace
-ENV ROS_WS=${HOME}/workspace/ros
+#============= Setup Isaac-sim python env =============#
+# To shorten the build time, isaacsim will be mounted when the container starts instead of being installed in the image.
+ENV ISAACSIM_PATH="/mnt/dev-tools/isaac-sim-5.0"
+ENV ISAACSIM_PYTHON_EXE="${ISAACSIM_PATH}/python.sh"
 
-#============= Install extra software packages =============#
-# Examples:
-# RUN apt update && apt install -y curl
-# RUN pip install numpy
+# Install jupyter kernel of Isaac-sim python (3.11)
+COPY --chown=${NB_USER}:users binder/kernel.json /opt/conda/share/jupyter/kernels/isaac-sim/kernel.json
 #===========================================================#
 
 # Copy content to the image
@@ -16,10 +16,6 @@ WORKDIR ${REPO_DIR}
 COPY --chown=${NB_USER}:users . ${REPO_DIR}/
 RUN git config --global --add safe.directory ${REPO_DIR}
 
-# Create a symbolic link to the ROS workspace under the working directory
-RUN ln -s ${ROS_WS} ${PWD}/ROS_WS
-
 # The entrypoint of the docker image
 COPY --chown=${NB_USER}:users binder/entrypoint.sh /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
-
