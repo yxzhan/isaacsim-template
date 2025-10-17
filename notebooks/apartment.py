@@ -2,11 +2,9 @@ from isaacsim import SimulationApp
 
 simulation_app = SimulationApp({
     "headless": False,
-    "hide_ui": True,
-    # "width": 1280,
-    # "height": 960,
-    "width": 2560,
-    "height": 1920,
+    # "hide_ui": True,
+    "width": 1280,
+    "height": 960,
     # "window_width": 1280,
     # "window_height": 960,
     # "headless": True,
