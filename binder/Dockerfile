@@ -3,7 +3,8 @@ FROM intel4coro/jupyter-ros2:jazzy-py3.12
 
 #============= Setup Isaac-sim python env =============#
 # To shorten the build time, isaacsim will be mounted when the container starts instead of being installed in the image.
-ENV ISAACSIM_PATH="/mnt/dev-tools/isaac-sim-5.0"
+ENV ISAACSIM_VERSION="5.0"
+ENV ISAACSIM_PATH="/mnt/dev-tools/isaac-sim-${ISAACSIM_VERSION}"
 ENV ISAACSIM_PYTHON_EXE="${ISAACSIM_PATH}/python.sh"
 
 # Install jupyter kernel of Isaac-sim python (3.11)
@@ -11,8 +12,8 @@ COPY --chown=${NB_USER}:users binder/kernel.json /opt/conda/share/jupyter/kernel
 #===========================================================#
 
 # Copy content to the image
-ENV REPO_DIR=${HOME}/work
-RUN rm -rf $REPO_DIR/*
+ENV REPO_DIR=${HOME}/Document/isaacsim-template
+RUN mkdir -p ${REPO_DIR}
 WORKDIR ${REPO_DIR}
 COPY --chown=${NB_USER}:users . ${REPO_DIR}/
 RUN git config --global --add safe.directory ${REPO_DIR}

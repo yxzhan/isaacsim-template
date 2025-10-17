@@ -67,7 +67,7 @@ def get_one_ros_message(topic_name: str, timeout: float = 5.0):
     node.destroy_node()
     return msg_container
 
-
+# Open remote desktop in new tab
 def display_desktop(anchor="split-right"):
     """
     Display the remote desktop in a JupyterLab Sidecar tab.
@@ -106,48 +106,16 @@ def display_desktop(anchor="split-right"):
 
 # Bash script to extract Isaacsim cache
 CACHE_EXTRACT_CMD="""
-echo "Extracting isaac-sim ${ISAAC_SIM_VERSION} cache..."
-# cd ${DEV_TOOLS_PATH}
-# tar -xzvf ./isaacsim-cache/isaacsim-cache-${ISAAC_SIM_VERSION}.tar.gz -C /tmp
-# cd /tmp/isaacsim-cache
-cd ${DEV_TOOLS_PATH}/isaacsim-cache/${ISAAC_SIM_VERSION}
-cp -r ./cache/ov $HOME/.cache/ov
-cp -r ./cache/pip $HOME/.cache/pip
-mkdir -p $HOME/.cache/nvidia
-# cp -r ./cache/GLCache $HOME/.cache/nvidia/GLCache
-mkdir -p $HOME/.nv
-cp -r ./cache/computecache $HOME/.nv/ComputeCache
-mkdir -p $HOME/.nvidia-omniverse
-cp -r ./logs $HOME/.nvidia-omniverse/logs
-mkdir -p $HOME/.local/share/ov
-cp -r ./data $HOME/.local/share/ov/data
-mkdir -p $HOME/Documents
-cp -r ./documents $HOME/Documents
-echo "Done! $(date)"
+${DEV_TOOLS_PATH}/isaacsim-cache/extract.sh
 """
 
 # Bash script to Archive Isaacsim cache
 CACHE_ARCHIVE_CMD="""
-echo 'Compressing cache...'
-WORKDIR="/tmp/isaacsim-cache"
-rm -rf "$WORKDIR"
-mkdir -p "$WORKDIR/cache"
-# Collect cache directory
-cp -r $HOME/.cache/ov "$WORKDIR/cache/ov"
-cp -r $HOME/.cache/pip "$WORKDIR/cache/pip"
-# cp -r $HOME/.cache/nvidia/GLCache "$WORKDIR/cache/GLCache"
-cp -r $HOME/.nv/ComputeCache "$WORKDIR/cache/computecache"
-cp -r $HOME/.nvidia-omniverse/logs "$WORKDIR/logs"
-cp -r $HOME/.local/share/ov/data "$WORKDIR/data"
-cp -r $HOME/Documents "$WORKDIR/documents"
-# Archive
-cd /tmp
-tar -czvf "/mnt/dev-tools/isaacsim-cache-${ISAAC_SIM_VERSION}.tar.gz" isaacsim-cache
-echo "New cache pack: /mnt/dev-tools/isaacsim-cache-${ISAAC_SIM_VERSION}.tar.gz"
+${DEV_TOOLS_PATH}/isaacsim-cache/archive.sh
 """
 
 # Bash script to setup isaac-sim python env
-ISAAC_SIM_ENV="""
+ISAACSIM_ENV="""
 # unset virtualGL ENV (which breaks ROS2 bridge)
 unset LD_PRELOAD
 # Clear default ROS ENV
