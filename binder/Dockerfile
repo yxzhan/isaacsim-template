@@ -12,7 +12,7 @@ COPY --chown=${NB_USER}:users binder/kernel.json /opt/conda/share/jupyter/kernel
 
 # Copy content to the image
 ENV REPO_DIR=${HOME}/work
-RUN rm -rf $REPO_DIR && mkdir -p $REPO_DIR
+RUN rm -rf $REPO_DIR/*
 WORKDIR ${REPO_DIR}
 COPY --chown=${NB_USER}:users . ${REPO_DIR}/
 RUN git config --global --add safe.directory ${REPO_DIR}
