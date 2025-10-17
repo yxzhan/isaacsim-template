@@ -13,7 +13,7 @@ COPY --chown=${NB_USER}:users binder/kernel.json /opt/conda/share/jupyter/kernel
 
 # Copy content to the image
 USER ${NB_USER}
-ENV REPO_DIR=${HOME}/Document/isaacsim-template
+ENV REPO_DIR=${HOME}/Documents/isaacsim-template
 RUN mkdir -p ${REPO_DIR}
 WORKDIR ${REPO_DIR}
 COPY --chown=${NB_USER}:users . ${REPO_DIR}/

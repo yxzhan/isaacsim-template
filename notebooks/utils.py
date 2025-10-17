@@ -3,7 +3,11 @@ from IPython.display import display, HTML
 from sidecar import Sidecar
 import threading
 import subprocess
-import rclpy
+try:
+    import rclpy
+except:
+    print("rclpy not installed!")
+    pass
 import importlib
 
 # publish one ROS message
