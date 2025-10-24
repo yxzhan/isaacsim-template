@@ -1,6 +1,6 @@
 # isaacsim-template
 
-[![Binder](https://binder.intel4coro.de/badge_logo.svg)](https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab%2Ftree%2Fnotebooks%2Flauncher.ipynb)
+[![Binder](https://binder.intel4coro.de/badge_logo.svg)](https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab%2Ftree%2Fexamples%2Flauncher.ipynb)
 
 This is a template repo for running modern robot simulator (such as Isaac Sim and Unreal Engine) on the GPU-enabled VRB cloud server.
 
@@ -19,7 +19,7 @@ This is a template repo for running modern robot simulator (such as Isaac Sim an
 
 1. Open the following link to launch a lab instance:
 
-    https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab/tree/notebooks/launcher.ipynb
+    https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab/tree/examples/launcher.ipynb
 
 2. The opened Jupyter Notebook can run some demos and tools, and all official Isaac Sim Python standalone examples. Since Isaac Sim only supports Python 3.11 while the default Python environment (aligned with ROS Jazzy) is version 3.12, the example Python code cannot be directly executed in the notebook and requires additional environment variable configuration. The specific environment variables are defined in [examples/utils.py](./examples/utils.py). Alternatively, you can opened the code with `VSCode` or `PyCharm` and manually configuring the Python interpreter to `/mnt/dev-tools/isaac-sim-5.0/python.sh`.
 
