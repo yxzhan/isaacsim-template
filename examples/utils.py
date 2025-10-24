@@ -23,7 +23,7 @@ os.environ["ROS_DOMAIN_ID"] = "0"
 os.environ["RMW_IMPLEMENTATION"] = "rmw_fastrtps_cpp"
 os.environ["ROS_AUTOMATIC_DISCOVERY_RANGE"] = "LOCALHOST"
 os.environ["DEV_TOOLS_PATH"] = "/mnt/dev-tools"
-os.environ["ISAACSIM_VERSION"] = "5.0"
+os.environ["ISAACSIM_VERSION"] = "5.1"
 os.environ["ISAACSIM_PATH"] = f"{os.environ['DEV_TOOLS_PATH']}/isaac-sim-{os.environ['ISAACSIM_VERSION']}"
 os.environ["ISAACSIM_PYTHON_EXE"] = f"{os.environ['ISAACSIM_PATH']}/python.sh"
 

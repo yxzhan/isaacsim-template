@@ -27,7 +27,6 @@ services:
       - PRIVACY_CONSENT="YES"
       - OMNI_KIT_ACCEPT_EULA="YES"
       - OMNI_KIT_ALLOW_ROOT="1"
-      - ISAAC_SIM_VERSION="5.0"
       - DEV_TOOLS_PATH="/mnt/dev-tools"
     deploy:
       resources:

@@ -21,7 +21,7 @@ This is a template repo for running modern robot simulator (such as Isaac Sim an
 
     https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab/tree/examples/launcher.ipynb
 
-2. The opened Jupyter Notebook can run some demos and tools, and all official Isaac Sim Python standalone examples. Since Isaac Sim only supports Python 3.11 while the default Python environment (aligned with ROS Jazzy) is version 3.12, the example Python code cannot be directly executed in the notebook and requires additional environment variable configuration. The specific environment variables are defined in [examples/utils.py](./examples/utils.py). Alternatively, you can opened the code with `VSCode` or `PyCharm` and manually configuring the Python interpreter to `/mnt/dev-tools/isaac-sim-5.0/python.sh`.
+2. The opened Jupyter Notebook can run some demos and tools, and all official Isaac Sim Python standalone examples. Since Isaac Sim only supports Python 3.11 while the default Python environment (aligned with ROS Jazzy) is version 3.12, the example Python code cannot be directly executed in the notebook and requires additional environment variable configuration. The specific environment variables are defined in [examples/utils.py](./examples/utils.py). Alternatively, you can opened the code with `VSCode` or `PyCharm` and manually configuring the Python interpreter to `/mnt/dev-tools/isaac-sim-5.1/python.sh`.
 
 3. Navigate to the parent directory in the file browser, and you will see a folder named `dev-tools`(a symlink to the shared storage space `/mnt/dev-tools`), which contains the Isaac Sim main program, precompiled shader caches, and other large files.
 
@@ -80,14 +80,14 @@ NVIDIA Container Toolkit: https://docs.nvidia.com/datacenter/cloud-native/contai
 
 ### Run and build docker image Locally (Under repo directory)
 
-- Download isaac-sim: https://docs.isaacsim.omniverse.nvidia.com/5.0.0/installation/download.html
+- Download isaac-sim: https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/download.html
 
 - Create directories `dev-tools` under the repo directory:
 
   ```bash
   mkdir -p dev-tools
   ```
-- Extract the Isaac Sim to directory `dev-tools`, rename it to `isaac-sim-5.0`.
+- Extract the Isaac Sim to directory `dev-tools`, rename it to `isaac-sim-5.1`.
 
 - To make the current directory writable inside the container:
 
