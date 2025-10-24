@@ -18,7 +18,6 @@ import argparse
 import carb
 import math
 import numpy as np
-import omni.appwindow  # Contains handle to keyboard
 import omni.kit.app
 from isaacsim.core.api import World
 from isaacsim.core.utils.prims import define_prim
@@ -42,11 +41,7 @@ parser.add_argument(
 args = parser.parse_args()
 print(f"Number of robots: {args.num_robots}")
 
-# Default Livestream settings
-# app.set_setting("/app/window/drawMouse", True)
-
 # Enable extension
-# enable_extension("omni.services.livestream.nvcf")
 enable_extension("omni.physx.supportui")
 
 

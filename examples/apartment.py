@@ -19,7 +19,7 @@ import carb
 import os
 import math
 import numpy as np
-import omni.appwindow  # Contains handle to keyboard
+# import omni.appwindow  # Contains handle to keyboard
 import omni.kit.app
 from isaacsim.core.api import World
 from isaacsim.core.utils.prims import define_prim
@@ -40,7 +40,6 @@ args = parser.parse_args()
 print(f"Number of robots: {args.num_robots}")
 
 # Enable extension
-# enable_extension("omni.services.livestream.nvcf")
 enable_extension("omni.physx.supportui")
 
 

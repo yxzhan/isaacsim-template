@@ -19,10 +19,16 @@ services:
       - ../:/home/jovyan/work:rw
       # - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /usr/share/vulkan/icd.d/:/etc/vulkan/icd.d
-      - ${PWD}/../binder.intel4coro.de/dev-tools:/mnt/dev-tools:rw 
+      - ${PWD}/dev-tools:/mnt/dev-tools:rw 
     environment:
       # - DISPLAY
       - NVIDIA_DRIVER_CAPABILITIES=all
+      - ACCEPT_EULA="YES"
+      - PRIVACY_CONSENT="YES"
+      - OMNI_KIT_ACCEPT_EULA="YES"
+      - OMNI_KIT_ALLOW_ROOT="1"
+      - ISAAC_SIM_VERSION="5.0"
+      - DEV_TOOLS_PATH="/mnt/dev-tools"
     deploy:
       resources:
         reservations:
