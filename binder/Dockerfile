@@ -14,7 +14,12 @@ COPY --chown=${NB_USER}:users binder/kernel.json /opt/conda/share/jupyter/kernel
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 #===========================================================#
 
-# Copy content to the image
+# Install python packages
+USER ${NB_USER}
+COPY --chown=${NB_USER}:users binder/requirements.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt
+
+# Copy repo content to the image
 USER ${NB_USER}
 ENV REPO_DIR=${HOME}/Documents/isaacsim-template
 RUN mkdir -p ${REPO_DIR}

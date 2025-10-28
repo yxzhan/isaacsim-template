@@ -1,8 +1,6 @@
 import os
 from sidecar import Sidecar
-import signal
 import html
-import time
 import subprocess
 import threading
 import ipywidgets as widgets

@@ -1,0 +1,11 @@
+# Core visualization and GUI
+matplotlib>=3.5
+ipywidgets>=8.0
+sidecar>=0.7.0
+
+# GUI frameworks (you can use either PyQt5 or PySide2)
+PyQt5
+PySide2
+
+# Computer vision
+opencv-python>=4.8

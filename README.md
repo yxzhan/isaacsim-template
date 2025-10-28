@@ -2,54 +2,77 @@
 
 [![Binder](https://binder.intel4coro.de/badge_logo.svg)](https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab%2Ftree%2Fexamples%2Flauncher.ipynb)
 
-This is a template repo for running modern robot simulator (such as Isaac Sim and Unreal Engine) on the GPU-enabled VRB cloud server.
+This is a template repo for running modern robot simulator (such as Isaac Sim and Unreal Engine) on the GPU-enabled AIRCOR VRB cloud server.
 
 ![](./docs/demo.gif)
 
-
 > ### Access Requirements:
 > 
-> Currently, the GPU-enabled VRB is only accessible within the University of Bremen network. You must be connected through one of the following:
+> Currently, the GPU-enabled server is only accessible within the Uni-Bremen network. You need to be connected through one of the following:
 >
-> - Office network
-> - eduroam Wifi in campus
+> - Office LAN network
+> - Eduroam Wifi in campus
 > - University VPN (vpn.uni-bremen.de)
 
 ## Quick start
 
-1. Open the following link to launch a lab instance:
+1. Open the following link in a new browser tab to launch a lab instance:
 
     https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab/tree/examples/launcher.ipynb
 
-2. The opened Jupyter Notebook can run some demos and tools, and all official Isaac Sim Python standalone examples. Since Isaac Sim only supports Python 3.11 while the default Python environment (aligned with ROS Jazzy) is version 3.12, the example Python code cannot be directly executed in the notebook and requires additional environment variable configuration. The specific environment variables are defined in [examples/utils.py](./examples/utils.py). Alternatively, you can opened the code with `VSCode` or `PyCharm` and manually configuring the Python interpreter to `/mnt/dev-tools/isaac-sim-5.1/python.sh`.
+2. The notebook `launcher.ipynb` is a UI interface of [ipywidgets](https://github.com/jupyter-widgets/ipywidgets) for quickly running the demos. Follow the notebook instruction to initialize the UI. Since Isaac Sim only supports Python 3.11 while the default Python environment (aligned with ROS Jazzy) is version 3.12. To run Isaac Sim code within the notebook, you need to create a new notebook with the kernel set to "Isaac Sim Python3". Alternatively, you can open the code with `VSCode` or `PyCharm` and manually configuring the Python interpreter to `/mnt/dev-tools/isaac-sim-5.1/python.sh`.
 
-3. Navigate to the parent directory in the file browser, and you will see a folder named `dev-tools`(a symlink to the shared storage space `/mnt/dev-tools`), which contains the Isaac Sim main program, precompiled shader caches, and other large files.
+    ![vscode](./docs/vscode.gif)
+
+3. Navigate to the parent directory in the file browser, and you will see a folder named `dev-tools`(a symlink to the shared storage space `/mnt/dev-tools`), which contains the Isaac Sim main program, precompiled shader, asset caches, and other large files.
 
     ![](./docs/dev-tools.gif)
 
-4. You can store files under the dev-tools directory (please create a new subdirectory). This allows others to directly access your files (e.g., USD assets, ROS workspaces) without building new docker images. Files outside this directory will be deleted when the current container is terminated. To upload local files, simply drag and drop them into the file browser.
+4. You can store files under the `dev-tools` directory (please create a new subdirectory). This allows others to directly access your files (e.g., USD assets, ROS workspaces) without building new docker images. Files outside this directory will be deleted when the current container is terminated. To upload local files, simply drag and drop them into the file browser.
+
+    If you want to directly open your uploaded files in a new lab instance, change the last part of the launcher URL to point to your file address. For example, if I uploaded a notebook `dev-tools/my_uploaded_files/my_notebook.ipynb`, the launch URL would be:
+
+    `https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab/tree/dev-tools/my_uploaded_files/my_notebook.ipynb`
 
 5. If you are running programs that utilize GPU resources, such as Isaac Sim or Unreal Engine, please remember to manually terminate the processes afterward, as GPU resources are highly limited. Best to manually shut down the entire lab instance in menu `File > Shutdown`.
 
     ![](./docs/shutdown.jpg)
 
-6. Currently, only Vulkan-based programs can utilize GPU rendering, while OpenGL-based applications (such as Rviz, PyBullet, Mujoco, Gazebo, etc.) are still rendering by CPU.
+> Note: Currently, only Vulkan-based programs can utilize GPU rendering, while OpenGL-based applications (such as Rviz, PyBullet, Mujoco, Gazebo, etc.) are still rendering by CPU.
 
 ## Upgrade existing VRB labs
 
 The existing VRB labs can also run directly on the GPU server by simply changing the launcher URL from "https://binder.XXX" to "https://binder.dev.XXX". However, to run Isaac Sim, the Docker image needs to be upgraded to at least Ubuntu 22.04 and requires the installation of a VNC desktop, the recommended way is to update the base Docker image to `intel4coro/jupyter-ros2:jazzy-py3.12`.
 
-## Create a new repository from this template
+## Create a new VRB lab from this template
 
-1. Create your own repository using this template repo. Detail steps can be found in: https://vib.ai.uni-bremen.de/page/softwaretools/cloud-based-robotics-platform#zero-to-binder
+1. Login to Github.
 
-1. Place your own notebooks, python code, usd files in the repo.
+1. Create a repository using this template repo.
 
-1. Customize the [Dockerfile](binder/Dockerfile) if your project needs additional Python packages or system libraries.
+    ![](./docs/create-repo.png)
 
-1. Launch your VRB repo to build docker image.
+1. Clone git repo, add your notebooks, python code, usd files to repo.
 
-1. Run your custom simulation workflows.
+1. Modify the [requirements.txt](binder/requirements.txt) to install additional python packages.
+
+1. Modify the [Dockerfile](binder/Dockerfile) if your project needs additional APT libraries.
+
+    Examples:
+
+    ```Dockerfile
+    # Install APT packages (switch to root)
+    USER root
+    RUN apt update
+    RUN apt install -y ffmpeg
+    # Switch back to the non-root user to avoid file permission issues.
+    USER ${NB_USER}
+    ```
+
+1. Build and launch your lab instance, .
+
+    `https://binder.dev.intel4coro.de/v2/gh/{YOUR_GITHUB_USER}/{YOUR_REPO_NAME}/main?urlpath=lab/tree/{PATH_TO_NOTEBOOK}`
+
 
 ## Repository Structure
 
@@ -82,18 +105,14 @@ NVIDIA Container Toolkit: https://docs.nvidia.com/datacenter/cloud-native/contai
 
 - Download isaac-sim: https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/download.html
 
-- Create directories `dev-tools` under the repo directory:
+- Create directoriy `dev-tools` under the repo directory:
 
   ```bash
   mkdir -p dev-tools
   ```
 - Extract the Isaac Sim to directory `dev-tools`, rename it to `isaac-sim-5.1`.
 
-- To make the current directory writable inside the container:
-
-  ```bash
-  sudo chmod -R g+w ./
-  ```
+- Create another directory under `dev-tools`, rename it to `isaacsim-cache`. This directory is to store Isaac Sim's shader cache. The first time Isaac Sim runs, it needs to compile shaders, which can take a long time.
 
 - Build and run docker image:
 
@@ -104,6 +123,13 @@ NVIDIA Container Toolkit: https://docs.nvidia.com/datacenter/cloud-native/contai
   ```
 
 - Open Web browser and go to http://localhost:8888/
+
+- To make the current directory writable inside the container:
+
+  ```bash
+  sudo chown $(id -u):$(id -g) -R ./dev-tools
+  sudo chmod -R g+w ./
+  ```
 
 - To stop and remove container:
 

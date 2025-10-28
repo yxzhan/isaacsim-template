@@ -8,7 +8,7 @@ from IPython.display import display, clear_output
 class GPUMonitor:
     """Non-blocking real-time GPU usage monitor for Jupyter notebooks."""
 
-    def __init__(self, interval=2.0, low_mem_thred=2000):
+    def __init__(self, interval=2.0, low_mem_thred=3000):
         """
         Initialize the GPU monitor.
 
