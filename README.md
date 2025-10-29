@@ -20,21 +20,27 @@ This is a template repo for running modern robot simulator (such as Isaac Sim an
 
     https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab/tree/examples/launcher.ipynb
 
-2. The notebook `launcher.ipynb` is a UI interface of [ipywidgets](https://github.com/jupyter-widgets/ipywidgets) for quickly running the demos. Follow the notebook instruction to initialize the UI. Since Isaac Sim only supports Python 3.11 while the default Python environment (aligned with ROS Jazzy) is version 3.12. To run Isaac Sim code within the notebook, you need to create a new notebook with the kernel set to "Isaac Sim Python3". Alternatively, you can open the code with `VSCode` or `PyCharm` and manually configuring the Python interpreter to `/mnt/dev-tools/isaac-sim-5.1/python.sh`.
+1. The notebook `launcher.ipynb` is a UI interface of [ipywidgets](https://github.com/jupyter-widgets/ipywidgets) for quickly running the demos. Follow the notebook instruction to initialize the UI. If you see the low memory warning message, it indicates that someone else is currently using the GPU resources. Please wait until it is free before trying again.
+
+1. Since Isaac Sim only supports Python 3.11 while the default Python environment (aligned with ROS Jazzy) is version 3.12. To run Isaac Sim code within the notebook, you need to set the kernel to "Isaac Sim Python3". In the same directory, there is an example notebook named [anymal_in_apartment.ipynb](./examples/anymal_in_apartment.ipynb), which provides a simple step-by-step  tutorial covering some fundamental usage scenarios.
+
+    ![](./docs/tutorial.png)
+
+1. Alternatively, you can open the code with `VSCode` or `PyCharm` and manually configuring the Python interpreter to `/mnt/dev-tools/isaac-sim-5.1/python.sh`.
 
     ![vscode](./docs/vscode.gif)
 
-3. Navigate to the parent directory in the file browser, and you will see a folder named `dev-tools`(a symlink to the shared storage space `/mnt/dev-tools`), which contains the Isaac Sim main program, precompiled shader, asset caches, and other large files.
+1. Navigate to the parent directory in the file browser, and you will see a folder named `dev-tools`(a symlink to the shared storage space `/mnt/dev-tools`), which contains the Isaac Sim main program, precompiled shader, asset caches, and other large files.
 
     ![](./docs/dev-tools.gif)
 
-4. You can store files under the `dev-tools` directory (please create a new subdirectory). This allows others to directly access your files (e.g., USD assets, ROS workspaces) without building new docker images. Files outside this directory will be deleted when the current container is terminated. To upload local files, simply drag and drop them into the file browser.
+1. You can store files under the `dev-tools` directory (please create a new subdirectory). This allows others to directly access your files (e.g., USD assets, ROS workspaces) without building new docker images. Files outside this directory will be deleted when the current container is terminated. To upload local files, simply drag and drop them into the file browser.
 
     If you want to directly open your uploaded files in a new lab instance, change the last part of the launcher URL to point to your file address. For example, if I uploaded a notebook `dev-tools/my_uploaded_files/my_notebook.ipynb`, the launch URL would be:
 
     `https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab/tree/dev-tools/my_uploaded_files/my_notebook.ipynb`
 
-5. If you are running programs that utilize GPU resources, such as Isaac Sim or Unreal Engine, please remember to manually terminate the processes afterward, as GPU resources are highly limited. Best to manually shut down the entire lab instance in menu `File > Shutdown`.
+1. If you are running programs that utilize GPU resources, such as Isaac Sim or Unreal Engine, please remember to manually terminate the processes afterward, as GPU resources are highly limited. Best to manually shut down the entire lab instance in menu `File > Shutdown`.
 
     ![](./docs/shutdown.jpg)
 
@@ -54,9 +60,9 @@ The existing VRB labs can also run directly on the GPU server by simply changing
 
 1. Clone git repo, add your notebooks, python code, usd files to repo.
 
-1. Modify the [requirements.txt](binder/requirements.txt) to install additional python packages.
+1. Modify the [binder/requirements.txt](binder/requirements.txt) to install additional python packages.
 
-1. Modify the [Dockerfile](binder/Dockerfile) if your project needs additional APT libraries.
+1. Modify the [binder/Dockerfile](binder/Dockerfile) if your project needs additional APT libraries.
 
     Examples:
 
@@ -72,7 +78,6 @@ The existing VRB labs can also run directly on the GPU server by simply changing
 1. Build and launch your lab instance, .
 
     `https://binder.dev.intel4coro.de/v2/gh/{YOUR_GITHUB_USER}/{YOUR_REPO_NAME}/main?urlpath=lab/tree/{PATH_TO_NOTEBOOK}`
-
 
 ## Repository Structure
 
