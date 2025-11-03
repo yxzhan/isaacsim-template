@@ -245,7 +245,7 @@ output_area = widgets.Textarea(
 )
 
 
-def run_script(script, label):
+def run_script(script, label=""):
     """
     Run a bash script in a subprocess.
     
