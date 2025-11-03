@@ -235,7 +235,7 @@ current_process = None
 run_in_bg = widgets.Checkbox(
     value=False,
     indent=False,
-    description="Run in separate terminals.",
+    description="Run demos in separate terminals.",
     disabled=False
 )
 
@@ -446,11 +446,14 @@ def display_desktop(anchor="split-right"):
                     'tab-before', 'tab-after'
     """
     try:
-        jupyterhub_user = os.environ['JUPYTERHUB_USER']
+        jupyterhub_user = os.environ["JUPYTERHUB_USER"]
+        domain_name = os.environ["BINDER_LAUNCH_HOST"]
+        domain_name = domain_name.replace("binder", "jupyter")
     except KeyError:
-        jupyterhub_user = None
-        
-    url_prefix = f"/user/{jupyterhub_user}" if jupyterhub_user is not None else ''
+        jupyterhub_user = ""
+        domain_name = ""
+
+    url_prefix = f"{domain_name}/user/{jupyterhub_user}"
     remote_desktop_url = f"{url_prefix}/desktop"
     
     sc = Sidecar(title='Desktop', anchor=anchor)
@@ -478,6 +481,10 @@ def display_desktop(anchor="split-right"):
                 <iframe src="{remote_desktop_url}" width="100%" height="100%"></iframe>
             </div>
         """))
+
+    display(widgets.HTML(
+        value=f'<a href="{remote_desktop_url}"  class="jupyter-button" style="color: #fff;background-color: #1976d2;" target="_blank">Open Desktop in new Tab</a>',
+    ))
 
 
 # =============================================================================

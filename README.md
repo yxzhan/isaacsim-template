@@ -36,9 +36,18 @@ This is a template repo for running modern robot simulator (such as Isaac Sim an
 
 1. You can store files under the `dev-tools` directory (please create a new subdirectory). This allows others to directly access your files (e.g., USD assets, ROS workspaces) without building new docker images. Files outside this directory will be deleted when the current container is terminated. To upload local files, simply drag and drop them into the file browser. To upload an entire directory, you need to compress it into an archive file first.
 
-1. To directly open your uploaded files in a new lab instance, change the last part of the launcher URL to point to your file address. For example, if I uploaded a notebook `dev-tools/my_uploaded_files/my_notebook.ipynb`, the launch URL would be:
+1. To directly open your uploaded files in a new lab instance, change the last part of the launcher URL to point to your file address. For example, if I uploaded a notebook `dev-tools/my_uploaded_files/my_notebook.ipynb`.
+    
+    Open in JupyterLab:
 
-    `https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab/tree/dev-tools/my_uploaded_files/my_notebook.ipynb`
+    ```
+    https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab/tree/dev-tools/my_uploaded_files/my_notebook.ipynb
+    ```
+
+    To open it directly in the VS Code interface, more complex URL parameters are required:
+    ```
+    https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=vscode?folder=/mnt/dev-tools/my_uploaded_files/%26payload=[["openFile","vscode-remote:///mnt/dev-tools/my_uploaded_files/my_notebook.ipynb"]]
+    ```
 
 1. If you are running programs that utilize GPU resources, such as Isaac Sim or Unreal Engine, please remember to manually terminate the processes afterward, as GPU resources are highly limited. Best to manually shut down the entire lab instance in menu `File > Shutdown`.
 

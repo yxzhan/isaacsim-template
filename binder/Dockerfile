@@ -14,6 +14,11 @@ COPY --chown=${NB_USER}:users binder/kernel.json /opt/conda/share/jupyter/kernel
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 #===========================================================#
 
+# Install vscode extensions
+RUN code-server --install-extension ms-python.python
+RUN code-server --install-extension ms-toolsai.jupyter
+
+
 # Install python packages
 USER ${NB_USER}
 COPY --chown=${NB_USER}:users binder/requirements.txt /tmp/requirements.txt
