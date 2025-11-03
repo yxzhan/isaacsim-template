@@ -455,9 +455,12 @@ def display_desktop(anchor="split-right"):
 
     url_prefix = f"{domain_name}/user/{jupyterhub_user}"
     remote_desktop_url = f"{url_prefix}/desktop"
+
+    display(widgets.HTML(
+        value=f'<a href="{remote_desktop_url}"  class="jupyter-button" style="color: #fff;background-color: #1976d2;" target="_blank">Open Desktop in new Tab</a>',
+    ))
     
     sc = Sidecar(title='Desktop', anchor=anchor)
-    
     with sc:
         # The inserted custom HTML and CSS snippets are to make the tab resizable
         display(HTML(f"""
@@ -481,10 +484,6 @@ def display_desktop(anchor="split-right"):
                 <iframe src="{remote_desktop_url}" width="100%" height="100%"></iframe>
             </div>
         """))
-
-    display(widgets.HTML(
-        value=f'<a href="{remote_desktop_url}"  class="jupyter-button" style="color: #fff;background-color: #1976d2;" target="_blank">Open Desktop in new Tab</a>',
-    ))
 
 
 # =============================================================================
