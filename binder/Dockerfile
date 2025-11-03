@@ -8,7 +8,7 @@ ENV ISAACSIM_PATH="/mnt/dev-tools/isaac-sim-${ISAACSIM_VERSION}"
 ENV ISAACSIM_PYTHON_EXE="${ISAACSIM_PATH}/python.sh"
 
 # Install jupyter kernel of Isaac-sim python (3.11)
-COPY --chown=${NB_USER}:users binder/kernel.json /home/jovyan/.local/share/jupyter/kernels/isaac-sim/kernel.json
+COPY --chown=${NB_USER}:users binder/kernel.json /opt/conda/share/jupyter/kernels/isaac-sim//kernel.json
 
 # Install UV
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
