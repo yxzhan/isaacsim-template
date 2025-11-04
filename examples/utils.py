@@ -5,6 +5,7 @@ Provides UI components, process management, and ROS2 utilities.
 
 import os
 import html
+import time
 import threading
 import subprocess
 import importlib
@@ -245,7 +246,7 @@ output_area = widgets.Textarea(
 )
 
 
-def run_script(script, label=""):
+def run_script(script, label="", background=None):
     """
     Run a bash script in a subprocess.
     
@@ -254,9 +255,10 @@ def run_script(script, label=""):
         label (str): Label for the process (for logging)
     """
     global current_process
-    
+
+    _background = run_in_bg.value if background is None else background
     # Determine command based on run mode
-    if run_in_bg.value:
+    if _background:
         cmd = ["gnome-terminal", "--", "bash", "-c", script]
     else:
         cmd = ["bash", "-c", script]
@@ -276,6 +278,7 @@ def run_script(script, label=""):
         output_area.value = line + output_area.value
 
     current_process.wait()
+    return current_process
 
 
 # =============================================================================
@@ -490,22 +493,22 @@ def display_desktop(anchor="split-right"):
 # ROS2 UTILITIES
 # =============================================================================
 
-def publish_one_ros_message(topic, message, msg_type):
-    """
-    Publish a single ROS2 message to a topic.
+# def publish_one_ros_message(topic, message, msg_type, qos=100):
+#     """
+#     Publish a single ROS2 message to a topic.
     
-    Args:
-        topic (str): Topic name to publish to
-        message: ROS2 message object
-        msg_type: ROS2 message type
-    """
-    if not rclpy.ok():
-        rclpy.init(args=None)
+#     Args:
+#         topic (str): Topic name to publish to
+#         message: ROS2 message object
+#         msg_type: ROS2 message type
+#     """
+#     if not rclpy.ok():
+#         rclpy.init(args=None)
         
-    node = rclpy.create_node("simple_publisher")
-    publisher = node.create_publisher(msg_type, topic, 10)
-    publisher.publish(message)
-    node.destroy_node()
+#     node = rclpy.create_node("simple_publisher")
+#     publisher = node.create_publisher(msg_type, topic, qos)
+#     publisher.publish(message)
+#     node.destroy_node()
 
 
 def get_topic_type(topic_name):
@@ -543,53 +546,57 @@ def get_message_class(type_str):
     return getattr(importlib.import_module(f"{pkg}.msg"), msg_name)
 
 
-def get_one_ros_message(topic_name, timeout=5.0):
+
+def get_ros_messages(topic_name, msg_type=None, num_messages=1, timeout=5.0):
     """
-    Fetch a single message from a ROS2 topic.
-    
+    Fetch multiple messages from a ROS2 topic.
+
     Args:
         topic_name (str): Name of the topic to subscribe to
-        timeout (float): Maximum time to wait for a message in seconds
-        
+        msg_type (rclpy Message class, optional): ROS message type. If None, auto-detect.
+        num_messages (int): Number of messages to collect
+        timeout (float): Maximum time to wait in seconds
+
     Returns:
-        object or None: Received message or None if timeout/no message
+        list: List of received messages (may be fewer than num_messages if timeout occurs)
     """
+
     if not rclpy.ok():
         rclpy.init(args=None)
-        
-    node = rclpy.create_node('one_shot_subscriber')
 
-    # Get topic message type
-    type_str = get_topic_type(topic_name)
-    if not type_str:
-        node.get_logger().error(f"Topic {topic_name} not found.")
-        node.destroy_node()
-        rclpy.shutdown()
-        return None
+    node = rclpy.create_node('multi_shot_subscriber')
 
-    msg_type = get_message_class(type_str)
-    node.get_logger().info(f"Detected message type: {type_str}")
+    # Auto-detect message type if not provided
+    if msg_type is None:
+        type_str = get_topic_type(topic_name)
+        if not type_str:
+            node.get_logger().error(f"Topic {topic_name} not found.")
+            node.destroy_node()
+            rclpy.shutdown()
+            return []
+        msg_type = get_message_class(type_str)
+        node.get_logger().info(f"Detected message type: {type_str}")
 
-    # Container to store received message
-    msg_container = {'msg': None}
+    # Container to store messages
+    msgs = []
 
     def callback(msg):
-        """Callback function to store received message."""
-        msg_container['msg'] = msg
-        rclpy.shutdown()
+        """Callback to store messages."""
+        msgs.append(msg)
+        # Stop spinning when reached required number
+        if len(msgs) >= num_messages:
+            rclpy.shutdown()
 
     # Create subscription
     node.create_subscription(msg_type, topic_name, callback, 10)
 
-    # Wait for message with timeout
-    import time
+    # Wait until messages received or timeout
     start_time = time.time()
-    
-    while rclpy.ok() and msg_container['msg'] is None:
+    while rclpy.ok() and len(msgs) < num_messages:
         rclpy.spin_once(node, timeout_sec=0.1)
         if time.time() - start_time > timeout:
-            node.get_logger().warn("Timeout waiting for message.")
+            node.get_logger().warn(f"Timeout after {timeout}s, collected {len(msgs)} messages.")
             break
 
     node.destroy_node()
-    return msg_container['msg']
+    return msgs
