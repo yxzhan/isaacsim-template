@@ -1,5 +1,5 @@
 {
-    "argv": ["/mnt/dev-tools/isaac-sim-5.1/python.sh", "-m", "ipykernel_launcher", "-f", "{connection_file}"],
+    "argv": ["/home/jovyan/.local/isaacsim_python_wrapper.sh", "-m", "ipykernel_launcher", "-f", "{connection_file}"],
     "display_name": "Isaac Sim Python 3.11",
     "language": "python",
     "env": {
