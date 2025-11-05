@@ -50,6 +50,8 @@ ISAACSIM_ENV = """
 unset LD_PRELOAD
 # Clear default ROS ENV
 unset PYTHONPATH
+# source /mnt/dev-tools/ros_ws/jazzy_py311/install/setup.bash
+# export FASTRTPS_DEFAULT_PROFILES_FILE=/mnt/dev-tools/ros_ws/IsaacSim-ros_workspaces/jazzy_ws/fastdds.xml
 export LD_LIBRARY_PATH=$ISAACSIM_PATH/exts/isaacsim.ros2.bridge/$ROS_DISTRO/lib
 """
 
@@ -105,7 +107,7 @@ def get_app_list():
             "path": f"{os.getcwd()}/carter_stereo.py",
             "command": textwrap.dedent(f"""
                 $ISAACSIM_PYTHON_EXE {os.getcwd()}/carter_stereo.py &
-                source /mnt/dev-tools/ros2_ws/install/setup.bash
+                source /mnt/dev-tools/ros_ws/apartment_ws/install/setup.bash
                 rviz2 -d {os.getcwd()}/carter_stereo.rviz &
                 ros2 run rqt_robot_steering rqt_robot_steering
             """)
@@ -115,7 +117,7 @@ def get_app_list():
             "path": f"{os.getcwd()}/carter_multiple_robot_navigation.py",
             "command": textwrap.dedent(f"""
                 $ISAACSIM_PYTHON_EXE {os.getcwd()}/carter_multiple_robot_navigation.py &
-                source $DEV_TOOLS_PATH/ros2_ws/install/setup.bash
+                source $DEV_TOOLS_PATH/ros_ws/apartment_ws/install/setup.bash
                 ros2 run rqt_robot_steering rqt_robot_steering
             """)
         },
@@ -150,11 +152,6 @@ def get_tools_list():
     """
     tools_list = [
         {
-            "name": "Rviz",
-            "command": "rviz2",
-            "description": "ROS Visualization Tool"
-        },
-        {
             "name": "MULTIVERSE",
             "command": textwrap.dedent(f"""
                 cd $DEV_TOOLS_PATH/Multiverse
@@ -173,7 +170,7 @@ def get_tools_list():
         {
             "name": "Apartment URDF",
             "command": textwrap.dedent(f"""
-                source $DEV_TOOLS_PATH/ros2_ws/install/setup.bash
+                source $DEV_TOOLS_PATH/ros_ws/apartment_ws/install/setup.bash
                 ros2 launch iai_apartment apartment_display.launch.py
             """),
             "description": "Display Apartment URDF Model"
@@ -193,11 +190,6 @@ def get_tools_list():
             "command": "gz sim",
             "description": "Gazebo Simulation"
         },
-        # {
-        #     "name": "Unreal Editor",
-        #     "command": "$DEV_TOOLS_PATH/Linux_Unreal_Engine_5.5.3/Engine/Binaries/Linux/UnrealEditor",
-        #     "description": "Unreal Engine Editor"
-        # }
     ]
     
     return tools_list
