@@ -9,7 +9,6 @@ ENV ISAACSIM_PYTHON_EXE="${ISAACSIM_PATH}/python.sh"
 
 # Install jupyter kernel of Isaac-sim python (3.11)
 COPY --chown=${NB_USER}:users binder/isaacsim_python_wrapper.sh /home/jovyan/.local/isaacsim_python_wrapper.sh
-
 COPY --chown=${NB_USER}:users binder/kernel.json /opt/conda/share/jupyter/kernels/isaac-sim//kernel.json
 
 # Install UV
@@ -20,7 +19,6 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 RUN code-server --install-extension ms-python.python
 RUN code-server --install-extension ms-toolsai.jupyter
 
-
 # Install python packages
 USER ${NB_USER}
 COPY --chown=${NB_USER}:users binder/requirements.txt /tmp/requirements.txt
@@ -30,9 +28,13 @@ RUN pip install -r /tmp/requirements.txt
 USER ${NB_USER}
 ENV REPO_DIR=${HOME}/Documents/isaacsim-template
 RUN mkdir -p ${REPO_DIR}
-WORKDIR ${REPO_DIR}
 COPY --chown=${NB_USER}:users . ${REPO_DIR}/
 RUN git config --global --add safe.directory ${REPO_DIR}
+
+# Set Jupyterlab default directory
+WORKDIR ${REPO_DIR}
+# Set VSCODE default directory
+ENV CODE_WORKING_DIRECTORY=${REPO_DIR}
 
 # The entrypoint of the docker image
 COPY --chown=${NB_USER}:users binder/entrypoint.sh /entrypoint.sh
