@@ -1,6 +1,6 @@
 # isaacsim-template
 
-[![Binder](https://binder.intel4coro.de/badge_logo.svg)](https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab%2Ftree%2Fexamples%2Flauncher.ipynb)
+[![Binder](https://binder.intel4coro.de/badge_logo.svg)](https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/humble?urlpath=lab%2Ftree%2Fexamples%2Flauncher.ipynb)
 
 This is a template repo for running modern robot simulator (such as Isaac Sim and Unreal Engine) on the GPU-enabled AIRCOR VRB cloud server.
 
@@ -18,7 +18,7 @@ This is a template repo for running modern robot simulator (such as Isaac Sim an
 
 1. Open the following link in a new browser tab to launch a lab instance:
 
-    https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab/tree/examples/launcher.ipynb
+    https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/humble?urlpath=lab/tree/examples/launcher.ipynb
 
 1. The notebook `launcher.ipynb` is a UI interface of [ipywidgets](https://github.com/jupyter-widgets/ipywidgets) for quickly running the demos. Follow the notebook instruction to initialize the UI. If you see the low memory warning message, it indicates that someone else is currently using the GPU resources. Please wait until it is free before trying again.
 
@@ -41,12 +41,12 @@ This is a template repo for running modern robot simulator (such as Isaac Sim an
     Open in JupyterLab:
 
     ```
-    https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab/tree/dev-tools/my_uploaded_files/my_notebook.ipynb
+    https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/humble?urlpath=lab/tree/dev-tools/my_uploaded_files/my_notebook.ipynb
     ```
 
     To open it directly in the VS Code interface, more complex URL parameters are required:
     ```
-    https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=vscode?folder=/mnt/dev-tools/my_uploaded_files/%26payload=[["openFile","vscode-remote:///mnt/dev-tools/my_uploaded_files/my_notebook.ipynb"]]
+    https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/humble?urlpath=vscode?folder=/mnt/dev-tools/my_uploaded_files/%26payload=[["openFile","vscode-remote:///mnt/dev-tools/my_uploaded_files/my_notebook.ipynb"]]
     ```
 
 1. If you are running programs that utilize GPU resources, such as Isaac Sim or Unreal Engine, please remember to manually terminate the processes afterward, as GPU resources are highly limited. Best to manually shut down the entire lab instance in menu `File > Shutdown`.
@@ -87,7 +87,7 @@ The existing VRB labs can also run directly on the GPU server by simply changing
 1. Launch your VRB lab instance, replacing the placeholder content inside the curly braces `{}` with your actual information, and open in web browser.
 
     ```
-    https://binder.dev.intel4coro.de/v2/gh/{YOUR_GITHUB_USER_NAME}/{YOUR_REPO_NAME}/main?urlpath=lab/tree/{PATH_TO_NOTEBOOK}
+    https://binder.dev.intel4coro.de/v2/gh/{YOUR_GITHUB_USER_NAME}/{YOUR_REPO_NAME}/humble?urlpath=lab/tree/{PATH_TO_NOTEBOOK}
     ```
 
     The first time it is launched, it will take some time to build the Docker image.
