@@ -19,6 +19,18 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 RUN code-server --install-extension ms-python.python
 RUN code-server --install-extension ms-toolsai.jupyter
 
+# Setup a Isaacsim ROS ws
+USER ${NB_USER}
+WORKDIR ${HOME}
+RUN git clone https://github.com/isaac-sim/IsaacSim-ros_workspaces && \
+    cd IsaacSim-ros_workspaces/humble_ws && \
+    rosdep update && \
+    rosdep install --from-paths src --ignore-src -r -y && \
+    pip install empy==3.3.4 && \
+    source ${ROS_PATH}/setup.bash && \
+    colcon build  --symlink-install --parallel-workers 8 && \
+    echo "source $HOME/IsaacSim-ros_workspaces/humble_ws/install/setup.bash" >> ${HOME}/.bashrc
+
 # Install python packages
 USER ${NB_USER}
 COPY --chown=${NB_USER}:users binder/requirements.txt /tmp/requirements.txt

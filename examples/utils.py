@@ -50,8 +50,6 @@ ISAACSIM_ENV = """
 unset LD_PRELOAD
 # Clear default ROS ENV
 unset PYTHONPATH
-# source /mnt/dev-tools/ros_ws/jazzy_py311/install/setup.bash
-# export FASTRTPS_DEFAULT_PROFILES_FILE=/mnt/dev-tools/ros_ws/IsaacSim-ros_workspaces/jazzy_ws/fastdds.xml
 export LD_LIBRARY_PATH=$ISAACSIM_PATH/exts/isaacsim.ros2.bridge/$ROS_DISTRO/lib
 """
 
@@ -127,7 +125,12 @@ def get_app_list():
         },
         {
             "name": "Franka Panda (ROS2)",
-            "path": f"{os.getcwd()}/moveit.py"
+            "path": f"{os.getcwd()}/moveit.py",
+            "command": textwrap.dedent(f"""
+                $ISAACSIM_PYTHON_EXE {os.getcwd()}/moveit.py &
+                source $HOME/IsaacSim-ros_workspaces/humble_ws/install/setup.bash
+                ros2 launch isaac_moveit isaac_moveit.launch.py
+            """)
         },
         {
             "name": "UR10 conveyor",
