@@ -445,10 +445,10 @@ def display_desktop(anchor="split-right"):
         domain_name = os.environ["BINDER_LAUNCH_HOST"]
         domain_name = domain_name.replace("binder", "jupyter")
     except KeyError:
-        jupyterhub_user = ""
-        domain_name = ""
+        jupyterhub_user = None
+        domain_name = "http://localhost:8888"
+    url_prefix = f"{domain_name}/user/{jupyterhub_user}" if jupyterhub_user is not None else ''
 
-    url_prefix = f"{domain_name}/user/{jupyterhub_user}"
     remote_desktop_url = f"{url_prefix}/desktop"
 
     display(widgets.HTML(
