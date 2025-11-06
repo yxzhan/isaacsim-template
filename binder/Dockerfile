@@ -1,9 +1,9 @@
 # Dockerfile of the base image: https://github.com/IntEL4CoRo/jupyter-ros2
-FROM intel4coro/jupyter-ros2:jazzy-py3.12
+FROM intel4coro/jupyter-ros2:humble-py3.10
 
 #============= Setup Isaac-sim python env =============#
 # To shorten the build time, isaacsim will be mounted when the container starts instead of being installed in the image.
-ENV ISAACSIM_VERSION="5.1"
+ENV ISAACSIM_VERSION="4.5"
 ENV ISAACSIM_PATH="/mnt/dev-tools/isaac-sim-${ISAACSIM_VERSION}"
 ENV ISAACSIM_PYTHON_EXE="${ISAACSIM_PATH}/python.sh"
 

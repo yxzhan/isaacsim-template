@@ -26,7 +26,7 @@ This is a template repo for running modern robot simulator (such as Isaac Sim an
 
     ![](./docs/tutorial.png)
 
-1. Alternatively, you can open the code with `VSCode` or `PyCharm` and manually configuring the Python interpreter to `/mnt/dev-tools/isaac-sim-5.1/python.sh`.
+1. Alternatively, you can open the code with `VSCode` or `PyCharm` and manually configuring the Python interpreter to `/mnt/dev-tools/isaac-sim-4.5/python.sh`.
 
     ![vscode](./docs/vscode.gif)
 
@@ -121,7 +121,7 @@ NVIDIA Container Toolkit: https://docs.nvidia.com/datacenter/cloud-native/contai
 
 ### Run and build docker image Locally (Under repo directory)
 
-- Download isaac-sim: https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/download.html
+- Download isaac-sim: https://docs.isaacsim.omniverse.nvidia.com/4.5.0/installation/download.html
 
 - Create directoriy `dev-tools` under the repo directory:
 
@@ -129,7 +129,7 @@ NVIDIA Container Toolkit: https://docs.nvidia.com/datacenter/cloud-native/contai
   mkdir -p dev-tools
   ```
 
-- Extract the Isaac Sim to directory `dev-tools`, and rename it to `isaac-sim-5.1`.
+- Extract the Isaac Sim to directory `dev-tools`, and rename it to `isaac-sim-4.5`.
 
 - Create another directory under `dev-tools`, rename it to `isaacsim-cache`. This directory is to store Isaac Sim's shader cache. The first time Isaac Sim runs, it needs to compile shaders, which can take a long time.
 

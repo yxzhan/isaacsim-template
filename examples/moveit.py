@@ -1,17 +1,11 @@
-# SPDX-FileCopyrightText: Copyright (c) 2020-2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2020-2024, NVIDIA CORPORATION. All rights reserved.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# NVIDIA CORPORATION and its licensors retain all intellectual property
+# and proprietary rights in and to this software, related documentation
+# and any modifications thereto. Any use, reproduction, disclosure or
+# distribution of this software and related documentation without an express
+# license agreement from NVIDIA CORPORATION is strictly prohibited.
 #
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import sys
 
@@ -19,7 +13,7 @@ import numpy as np
 from isaacsim import SimulationApp
 
 FRANKA_STAGE_PATH = "/Franka"
-FRANKA_USD_PATH = "/Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd"
+FRANKA_USD_PATH = "/Isaac/Robots/Franka/franka_alt_fingers.usd"
 BACKGROUND_STAGE_PATH = "/background"
 BACKGROUND_USD_PATH = "/Isaac/Environments/Simple_Room/simple_room.usd"
 
@@ -57,17 +51,13 @@ viewports.set_camera_view(eye=np.array([1.2, 1.2, 0.8]), target=np.array([0, 0, 
 stage.add_reference_to_stage(assets_root_path + BACKGROUND_USD_PATH, BACKGROUND_STAGE_PATH)
 
 # Loading the franka robot USD
-robot = prims.create_prim(
+prims.create_prim(
     FRANKA_STAGE_PATH,
     "Xform",
     position=np.array([0, -0.64, 0]),
     orientation=rotations.gf_rotation_to_np_array(Gf.Rotation(Gf.Vec3d(0, 0, 1), 90)),
     usd_path=assets_root_path + FRANKA_USD_PATH,
 )
-
-# Set variant selections for the Franka robot
-robot.GetVariantSet("Gripper").SetVariantSelection("AlternateFinger")
-robot.GetVariantSet("Mesh").SetVariantSelection("Quality")
 
 simulation_app.update()
 
@@ -112,6 +102,7 @@ try:
                 ("PublishJointState.inputs:topicName", "isaac_joint_states"),
                 ("SubscribeJointState.inputs:topicName", "isaac_joint_commands"),
                 ("PublishJointState.inputs:targetPrim", [usdrt.Sdf.Path(FRANKA_STAGE_PATH)]),
+                ("PublishTF.inputs:targetPrims", [usdrt.Sdf.Path(FRANKA_STAGE_PATH)]),
             ],
         },
     )
@@ -120,7 +111,7 @@ except Exception as e:
 
 simulation_app.update()
 
-# need to initialize physics getting any articulation etc.
+# need to initialize physics getting any articulation..etc
 simulation_context.initialize_physics()
 
 simulation_context.play()

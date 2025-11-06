@@ -1,7 +1,7 @@
 version: '3'
 services:
   isaacsim-template:
-    image: isaacsim-template:main
+    image: isaacsim-template:humble
     build:
       context: ../
       dockerfile: ./binder/Dockerfile
@@ -20,14 +20,14 @@ services:
       # - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /usr/share/vulkan/icd.d/:/etc/vulkan/icd.d
       - ${PWD}/dev-tools:/mnt/dev-tools:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/cache/kit:/isaac-sim/kit/cache:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/cache/ov:/root/.cache/ov:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/cache/pip:/root/.cache/pip:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/cache/glcache:/root/.cache/nvidia/GLCache:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/cache/computecache:/root/.nv/ComputeCache:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/logs:/root/.nvidia-omniverse/logs:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/data:/root/.local/share/ov/data:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/documents:/root/Documents:rw
+      - ${PWD}/dev-tools/isaacsim-cache/4.5/cache/kit:/isaac-sim/kit/cache:rw
+      - ${PWD}/dev-tools/isaacsim-cache/4.5/cache/ov:/root/.cache/ov:rw
+      - ${PWD}/dev-tools/isaacsim-cache/4.5/cache/pip:/root/.cache/pip:rw
+      - ${PWD}/dev-tools/isaacsim-cache/4.5/cache/glcache:/root/.cache/nvidia/GLCache:rw
+      - ${PWD}/dev-tools/isaacsim-cache/4.5/cache/computecache:/root/.nv/ComputeCache:rw
+      - ${PWD}/dev-tools/isaacsim-cache/4.5/logs:/root/.nvidia-omniverse/logs:rw
+      - ${PWD}/dev-tools/isaacsim-cache/4.5/data:/root/.local/share/ov/data:rw
+      - ${PWD}/dev-tools/isaacsim-cache/4.5/documents:/root/Documents:rw
     environment:
       # - DISPLAY
       - NVIDIA_DRIVER_CAPABILITIES=all
