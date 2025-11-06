@@ -63,7 +63,7 @@ The existing VRB labs can also run directly on the GPU server by simply changing
 
 1. Login to Github.
 
-1. Create a repository using this template repo.
+1. Use this template repository to create a new repository or fork it. Forking will make it easier to sync with future updates.
 
     ![](./docs/create-repo.png)
 
