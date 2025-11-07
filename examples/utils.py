@@ -47,7 +47,7 @@ LOCAL_ASSET_PATH = ''
 # Bash script to setup Isaac Sim Python environment
 ISAACSIM_ENV = """
 # unset virtualGL ENV (which breaks ROS2 bridge)
-unset LD_PRELOAD
+# unset LD_PRELOAD
 # Clear default ROS ENV
 unset PYTHONPATH
 # source /mnt/dev-tools/ros_ws/jazzy_py311/install/setup.bash
@@ -103,13 +103,13 @@ def get_app_list():
             "path": f"{os.getcwd()}/apartment.py"
         },
         {
-            "name": "Nova Carter (ROS2)",
+            "name": "Carter (Nav2)",
             "path": f"{os.getcwd()}/carter_stereo.py",
             "command": textwrap.dedent(f"""
-                $ISAACSIM_PYTHON_EXE {os.getcwd()}/carter_stereo.py &
-                source /mnt/dev-tools/ros_ws/apartment_ws/install/setup.bash
-                rviz2 -d {os.getcwd()}/carter_stereo.rviz &
-                ros2 run rqt_robot_steering rqt_robot_steering
+                $ISAACSIM_PYTHON_EXE {os.getcwd()}/carter_stereo.py
+                # source $ROS_PATH/setup.bash
+                # source $HOME/isaac_ws/install/setup.bash
+                # ros2 launch carter_navigation carter_navigation.launch.py
             """)
         },
         {
@@ -117,8 +117,8 @@ def get_app_list():
             "path": f"{os.getcwd()}/carter_multiple_robot_navigation.py",
             "command": textwrap.dedent(f"""
                 $ISAACSIM_PYTHON_EXE {os.getcwd()}/carter_multiple_robot_navigation.py &
-                source $DEV_TOOLS_PATH/ros_ws/apartment_ws/install/setup.bash
-                ros2 run rqt_robot_steering rqt_robot_steering
+                # source $HOME/isaac_ws/install/setup.bash
+                # ros2 launch carter_navigation multiple_robot_carter_navigation_hospital.launch.py
             """)
         },
         {
@@ -126,7 +126,7 @@ def get_app_list():
             "path": f"{os.getcwd()}/policy.py"
         },
         {
-            "name": "Franka Panda (ROS2)",
+            "name": "Panda (Moveit)",
             "path": f"{os.getcwd()}/moveit.py",
             "command": textwrap.dedent(f"""
                 $ISAACSIM_PYTHON_EXE {os.getcwd()}/moveit.py &
@@ -416,6 +416,7 @@ def display_ui():
     run_script("echo 'Launcher Ready!'", "Nothing")
 
     # Update UI with all components
+    run_in_bg.value = True
     ui.children = [
         run_in_bg,
         widgets.Label(value=f"Isaac Sim {os.environ['ISAACSIM_VERSION']}:"),

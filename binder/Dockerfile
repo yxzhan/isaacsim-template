@@ -45,12 +45,13 @@ ENV REPO_DIR=${HOME}/Documents/isaacsim-template
 RUN mkdir -p ${REPO_DIR}
 COPY --chown=${NB_USER}:users . ${REPO_DIR}/
 RUN git config --global --add safe.directory ${REPO_DIR}
-RUN ln -s $ISAAC_WS $PWD/isaac_ws
 
 # Set Jupyterlab default directory
 WORKDIR ${REPO_DIR}
 # Set VSCODE default directory
 ENV CODE_WORKING_DIRECTORY=${REPO_DIR}
+# Create symlink to Isaac_ws
+RUN ln -s $ISAAC_WS $PWD/isaac_ws
 
 # The entrypoint of the docker image
 COPY --chown=${NB_USER}:users binder/entrypoint.sh /entrypoint.sh
