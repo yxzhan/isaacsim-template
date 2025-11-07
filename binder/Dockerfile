@@ -16,7 +16,9 @@ RUN cd /tmp && \
     cd $ISAAC_WS/src/moveit && \
     git clone https://github.com/ayushgnv/moveit_resources.git -b isaac_moveit_tutorial_jazzy && \
     cd $ISAAC_WS && \
-    rosdep install -i --from-path src --rosdistro jazzy -y && \
+    sudo apt install -y ros-jazzy-topic-based-ros2-control && \
+    rosdep update && \
+    rosdep install -i --from-path src --rosdistro jazzy -y --skip-keys="topic_based_ros2_control" && \
     source /opt/ros/jazzy/setup.bash && \
     colcon build --symlink-install --parallel-workers 4
 
