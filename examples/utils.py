@@ -127,7 +127,12 @@ def get_app_list():
         },
         {
             "name": "Franka Panda (ROS2)",
-            "path": f"{os.getcwd()}/moveit.py"
+            "path": f"{os.getcwd()}/moveit.py",
+            "command": textwrap.dedent(f"""
+                $ISAACSIM_PYTHON_EXE {os.getcwd()}/moveit.py &
+                source $HOME/isaac_ws/install/setup.bash
+                ros2 launch isaac_moveit isaac_moveit.launch.py
+            """)
         },
         {
             "name": "UR10 conveyor",

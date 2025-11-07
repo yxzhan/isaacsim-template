@@ -7,6 +7,19 @@ ENV ISAACSIM_VERSION="5.1"
 ENV ISAACSIM_PATH="/mnt/dev-tools/isaac-sim-${ISAACSIM_VERSION}"
 ENV ISAACSIM_PYTHON_EXE="${ISAACSIM_PATH}/python.sh"
 
+# Setting Up Isaacsim ROS workspace
+ENV ISAAC_WS=${HOME}/isaac_ws
+RUN cd /tmp && \
+    git clone https://github.com/isaac-sim/IsaacSim-ros_workspaces.git && \
+    mv IsaacSim-ros_workspaces/jazzy_ws $ISAAC_WS && \
+    rm -rf IsaacSim-ros_workspaces && \
+    cd $ISAAC_WS/src/moveit && \
+    git clone https://github.com/ayushgnv/moveit_resources.git -b isaac_moveit_tutorial_jazzy && \
+    cd $ISAAC_WS && \
+    rosdep install -i --from-path src --rosdistro jazzy -y && \
+    source /opt/ros/jazzy/setup.bash && \
+    colcon build --symlink-install --parallel-workers 4
+
 # Install jupyter kernel of Isaac-sim python (3.11)
 COPY --chown=${NB_USER}:users binder/isaacsim_python_wrapper.sh /home/jovyan/.local/bin/isaacsim_python_wrapper.sh
 COPY --chown=${NB_USER}:users binder/kernel.json /opt/conda/share/jupyter/kernels/isaac-sim//kernel.json
@@ -30,6 +43,7 @@ ENV REPO_DIR=${HOME}/Documents/isaacsim-template
 RUN mkdir -p ${REPO_DIR}
 COPY --chown=${NB_USER}:users . ${REPO_DIR}/
 RUN git config --global --add safe.directory ${REPO_DIR}
+RUN ln -s $ISAAC_WS $PWD/isaac_ws
 
 # Set Jupyterlab default directory
 WORKDIR ${REPO_DIR}
