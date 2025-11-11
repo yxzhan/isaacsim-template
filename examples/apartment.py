@@ -97,7 +97,7 @@ refresh_view(steps=50, desc="Spawn Apartment")
 
 from isaacsim.core.utils import viewports
 
-for i in tqdm(range(200)):
+for i in range(200):
     offset = i * 0.05
     viewports.set_camera_view(eye=np.array([-15 + offset, 0, 1.5]), 
                               target=np.array([offset, 0, 1]))
@@ -258,16 +258,23 @@ node.create_subscription(Twist, 'cmd_vel', cmd_vel_callback, 10)
 
 
 # Resolve Python environment conflicts.
-from utils import run_script
-
+# from utils import run_script
+import subprocess
 import os
 os.environ.pop("PYTHONPATH", None)
-steer_gui = run_script("""
+steer_gui = """
 source /opt/ros/jazzy/setup.bash
 source $DEV_TOOLS_PATH/ros_ws/apartment_ws/install/setup.bash
 ros2 run rqt_robot_steering rqt_robot_steering
-""", background=True)
-
+"""
+cmd = ["bash", "-c", steer_gui]
+subprocess.Popen(
+    cmd,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    text=True,
+    bufsize=1,
+)
 
 # ## Run the simulation loop with ROS node spinning
 # 

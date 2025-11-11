@@ -416,7 +416,6 @@ def display_ui():
     run_script("echo 'Launcher Ready!'", "Nothing")
 
     # Update UI with all components
-    run_in_bg.value = True
     ui.children = [
         run_in_bg,
         widgets.Label(value=f"Isaac Sim {os.environ['ISAACSIM_VERSION']}:"),
