@@ -99,7 +99,7 @@ def get_app_list():
             """)
         },
         {
-            "name": "Apartment USD",
+            "name": "IAI Apartment",
             "path": f"{os.getcwd()}/apartment.py"
         },
         {
