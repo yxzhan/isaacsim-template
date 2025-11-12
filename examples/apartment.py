@@ -8,7 +8,7 @@ from IPython.display import clear_output
 # 
 # <div style="color:red">This will take some time, so give it a minute and wait for it to say <b>"SimulationApp Ready!"</b> before you go to next step.</div>
 
-# In[ ]:
+# In[1]:
 
 
 from isaacsim import SimulationApp
@@ -19,7 +19,7 @@ simulation_app = SimulationApp({
     "width": 1280,
     "height": 960,
     "renderer": "RaytracedLighting",
-    "display_options": 3286,  # Set display options to show default grid
+    "display_options": 3286,  # Setsimulation_app.update() display options to show default grid
 })
 
 
@@ -28,7 +28,7 @@ simulation_app = SimulationApp({
 # 
 # Setting physics to update at 200 Hz, rendering at 25 Hz, and using meters as the unit scale.
 
-# In[ ]:
+# In[3]:
 
 
 from isaacsim.core.api import World
@@ -50,7 +50,7 @@ prim.GetReferences().AddReference(asset_path)
 # 
 # Create a helper function to step the simulation world and update view. For the later code cells, wait for the progress bar to complete before proceeding to the next step.
 
-# In[ ]:
+# In[4]:
 
 
 from tqdm import tqdm
@@ -69,7 +69,7 @@ refresh_view()
 # Asset Source:
 # https://github.com/Multiverse-Framework/Multiverse-Tutorials/tree/main/resources/apartmentICRA_full/usda
 
-# In[ ]:
+# In[4]:
 
 
 import numpy as np
@@ -90,12 +90,30 @@ viewports.set_camera_view(eye=np.array([-15, 0, 1.5]),
 refresh_view(steps=50, desc="Spawn Apartment")
 
 
+# ## Add lights
+
+# In[5]:
+
+
+from isaacsim.core.utils.prims import create_prim
+for i in range(1,3):
+    gap = 6
+    create_prim(
+        prim_path=f"/World/Ground/Light_{i}",
+        prim_type="SphereLight",
+        attributes={"inputs:intensity": 30000},
+        position=(-gap * i, 0, 2)
+    )
+    refresh_view(steps=10, desc="Add Lights")
+
+
 # ## Move camera
 
-# In[ ]:
+# In[8]:
 
 
 from isaacsim.core.utils import viewports
+import numpy as np
 
 for i in range(200):
     offset = i * 0.05
@@ -112,7 +130,7 @@ refresh_view(steps=10)
 # 
 # You will see the robot collapse on the ground because no control commands have been sent to it yet.
 
-# In[ ]:
+# In[7]:
 
 
 from isaacsim.robot.policy.examples.robots import AnymalFlatTerrainPolicy
@@ -129,7 +147,7 @@ refresh_view(steps=30, desc="Spawn Anymal")
 # 
 # The control command is a 3-element array, where the first value represents forward velocity, the second represents lateral (left/right) movement, and the third represents rotation. Value range is from -1 to 1.
 
-# In[ ]:
+# In[7]:
 
 
 first_step = True
@@ -150,7 +168,7 @@ refresh_view(steps=80, desc="Physics callback")
 
 # ## Restart Simulation and initialize robot
 
-# In[ ]:
+# In[8]:
 
 
 first_step = True
@@ -161,7 +179,7 @@ refresh_view(steps=50, desc="Reset Robot")
 
 # ## Send Control Commands
 
-# In[ ]:
+# In[19]:
 
 
 commands = [-0.3, 0.0, 0.0]
@@ -181,22 +199,29 @@ refresh_view(steps=50, desc="Stop Moving")
 # 
 # Todos: Articulate robots
 
-# In[ ]:
+# In[6]:
 
 
 import os
+import numpy as np
 from isaacsim.core.utils.prims import create_prim
+from isaacsim.core.utils import viewports
 
+viewports.set_camera_view(eye=np.array([-12, -1.5, 2]), 
+                          target=np.array([0, 0, 0.5]))
 object_list = [
     "pr2",
-    "stretch"
+    "stretch",
+    "hsrb",
+    "tiago_dual",
+    # "ur10e",
 ]
 for i in range(len(object_list)):
     obj = object_list[i]
     create_prim(
         usd_path=f"{os.getcwd()}/../usd/{obj}/{obj}.usd",
         prim_path=f"/World/{obj}",
-        position=np.array([1.5 - i * 2, 1.8, 0.8]),
+        position=np.array([- i * 2 - 1, 1, 0.2]),
         orientation=np.array([0, 0, 0, 1])
     )
     refresh_view(steps=20, desc=f"Spawn {obj}")
@@ -206,13 +231,13 @@ refresh_view(steps=50)
 
 # ## Delete Objects
 
-# In[ ]:
+# In[25]:
 
 
 from isaacsim.core.utils.prims import delete_prim
 
-delete_prim("/World/stretch")
-refresh_view(steps=20, desc=f"Delete Stretch")
+# delete_prim("/World/stretch")
+# refresh_view(steps=20, desc=f"Delete Stretch")
 
 
 # ## Enable ROS2 Bridge
@@ -225,7 +250,7 @@ refresh_view(steps=20, desc=f"Delete Stretch")
 from isaacsim.core.utils.extensions import enable_extension
 
 enable_extension("isaacsim.ros2.bridge")
-
+enable_extension("omni.physx.supportui")
 
 # ## Create a ROS subscriber
 # 
@@ -257,8 +282,6 @@ node.create_subscription(Twist, 'cmd_vel', cmd_vel_callback, 10)
 # In[ ]:
 
 
-# Resolve Python environment conflicts.
-# from utils import run_script
 import subprocess
 import os
 os.environ.pop("PYTHONPATH", None)
@@ -283,7 +306,7 @@ subprocess.Popen(
 # In[ ]:
 
 
-steps = 1500
+steps = 2000
 desc = "ROS Spin"
 bar_format = "{l_bar}{bar}| {n_fmt}/{total_fmt} steps] {elapsed_s:.2f}s"
 for i in tqdm(range(steps), desc=desc, ncols=60, bar_format=bar_format):
