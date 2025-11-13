@@ -33,6 +33,7 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 # Install vscode extensions
 RUN code-server --install-extension ms-python.python
 RUN code-server --install-extension ms-toolsai.jupyter
+RUN code-server --install-extension continue.continue
 
 # Install python packages
 USER ${NB_USER}

@@ -22,7 +22,7 @@ This is a template repo for running modern robot simulator (such as Isaac Sim an
 
 1. The notebook `launcher.ipynb` is a UI interface of [ipywidgets](https://github.com/jupyter-widgets/ipywidgets) for quickly running the demos. Follow the notebook instruction to initialize the UI. If you see the low memory warning message, it indicates that someone else is currently using the GPU resources. Please wait until it is free before trying again.
 
-1. Since Isaac Sim only supports Python 3.11 while the default Python environment (aligned with ROS Jazzy) is version 3.12. To run Isaac Sim code within the notebook, you need to set the kernel to "Isaac Sim Python 3.11". In the same directory, there is an example notebook named [anymal_in_apartment.ipynb](./examples/anymal_in_apartment.ipynb), which provides a simple step-by-step  tutorial covering some fundamental usage scenarios.
+1. Since Isaac Sim only supports Python 3.11 while the default Python environment (aligned with ROS Jazzy) is version 3.12. To run Isaac Sim code within the notebook, you need to set the kernel to "Isaac Sim Python 3.11". In the same directory, there is an example notebook named [apartment.ipynb](./examples/apartment.ipynb), which provides a simple step-by-step  tutorial covering some fundamental usage scenarios.
 
     ![](./docs/tutorial.png)
 
