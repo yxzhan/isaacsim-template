@@ -25,7 +25,7 @@ in_notebook = get_ipython().__class__.__name__ == "ZMQInteractiveShell"
 
 from utils import *
 # Extract precompiled cache
-# run_script(CACHE_EXTRACT_CMD)
+run_script(CACHE_EXTRACT_CMD)
 
 # only runs in Jupyter Notebook
 if in_notebook:
@@ -42,7 +42,7 @@ if in_notebook:
 # 
 # <div style="color:red">This will take some time, so give it a minute and wait for it to say <b>"SimulationApp Ready!"</b> before you go to next step.</div>
 
-# In[ ]:
+# In[1]:
 
 
 from isaacsim import SimulationApp
@@ -55,7 +55,7 @@ original_stderr = sys.stderr
 
 simulation_app = SimulationApp({
     "headless": False,
-    "hide_ui": not in_notebook,
+    "hide_ui": True,
     "width": 1280,
     "height": 960,
     "renderer": "RaytracedLighting",
@@ -73,12 +73,15 @@ print('SimulationApp Ready!')
 # 
 # Setting physics to update at 200 Hz, rendering at 25 Hz, and using meters as the unit scale.
 
-# In[ ]:
+# In[2]:
 
 
 from isaacsim.core.api import World
 from isaacsim.core.utils.prims import define_prim
 from isaacsim.storage.native import get_assets_root_path
+
+from isaacsim.core.utils.extensions import enable_extension
+enable_extension("omni.physx.supportui")
 
 my_world = World(stage_units_in_meters=1.0,
                  physics_dt=1 / 200,
@@ -95,7 +98,7 @@ prim.GetReferences().AddReference(asset_path)
 # 
 # Create a helper function to step the simulation world and update view. For the later code cells, wait for the progress bar to complete before proceeding to the next step.
 
-# In[ ]:
+# In[3]:
 
 
 from tqdm import tqdm
@@ -103,7 +106,6 @@ from tqdm import tqdm
 def refresh_view(steps=10, desc="World Stepping"):
     bar_format = "{l_bar}{bar}| {n_fmt}/{total_fmt} steps] {elapsed_s:.2f}s"
     for i in tqdm(range(steps), desc=desc, ncols=60, bar_format=bar_format, file=sys.stdout):
-        # clear_output(wait=True)
         my_world.step(render=True)
 
 refresh_view()
@@ -114,7 +116,7 @@ refresh_view()
 # Asset Source:
 # https://github.com/Multiverse-Framework/Multiverse-Tutorials/tree/main/resources/apartmentICRA_full/usda
 
-# In[ ]:
+# In[4]:
 
 
 import numpy as np
@@ -132,12 +134,12 @@ create_prim(
 viewports.set_camera_view(eye=np.array([-15, 0, 1.5]), 
                           target=np.array([0, 0, 0.5]))
 
-refresh_view(steps=50, desc="Spawn Apartment")
+refresh_view(steps=30, desc="Spawn Apartment")
 
 
 # ## Add lights
 
-# In[ ]:
+# In[5]:
 
 
 from isaacsim.core.utils.prims import create_prim
@@ -153,9 +155,9 @@ for i in range(1,4):
     refresh_view(steps=10, desc="Add Lights")
 
 
-# ## Move viewport camera
+# ## Move Viewport Camera
 
-# In[ ]:
+# In[6]:
 
 
 import numpy as np
@@ -182,144 +184,329 @@ def move_camera(position, target, steps=100, smooth=True):
 
     refresh_view(steps=10)
 
-move_camera(position=[-5, 0, 1.5], target=[1, 0, 1.5], steps=200)
+move_camera(position=[-7, -2, 2], target=[-1, 0, 1], steps=50)
 
 
-# ## Spawn Robot Anymal
-# 
-# The USD file for the Anymal robot is provided by Isaac Sim itself. 
-# 
-# You will see the robot collapse on the ground because no control commands have been sent to it yet.
+# ## Spawn Robots
 
-# In[ ]:
-
-
-from isaacsim.robot.policy.examples.robots import AnymalFlatTerrainPolicy
-
-robot = AnymalFlatTerrainPolicy(
-    prim_path="/World/Anymal1",
-    name="Anymal",
-    position=np.array([0, 0, 0.6]),
-)
-refresh_view(steps=80, desc="Spawn Anymal")
-
-
-# ## Add physics callback function to control the robot
-# 
-# The control command is a 3-element array, where the first value represents forward velocity, the second represents lateral (left/right) movement, and the third represents rotation. Value range is from -1 to 1.
-
-# In[ ]:
-
-
-first_step = True
-commands = [0.0, 0.0, 0.0]
-
-def on_physics_step(step_size) -> None:
-    global first_step, commands
-    if first_step:
-        robot.initialize()
-        first_step = False
-    else:
-        robot.forward(step_size, commands)
-
-my_world.add_physics_callback("physics_step", callback_fn=on_physics_step)
-
-refresh_view(steps=80, desc="Physics callback")
-
-
-# ## Restart Simulation and initialize robot
-
-# In[ ]:
-
-
-first_step = True
-my_world.reset()
-commands = [0.0, 0.0, 0.0]
-refresh_view(steps=50, desc="Restart Simulation")
-
-
-# ## Send Control Commands
-
-# In[ ]:
-
-
-commands = [-0.3, 0.0, 0.0]
-refresh_view(steps=100, desc="Move Backward")
-
-commands = [0.0, -0.3, 0.0]
-refresh_view(steps=100, desc="Move Right")
-
-commands = [0.0, 0.0, 0.8]
-refresh_view(steps=100, desc="Turn Around")
-
-commands = [0.0, 0.0, 0.0]
-refresh_view(steps=50, desc="Stop Moving")
-
-
-# ## Spawn IAI robots
-# 
-# Todos: Articulate robots
-
-# In[ ]:
+# In[7]:
 
 
 import os
 import numpy as np
 from isaacsim.core.utils.prims import create_prim
-from isaacsim.core.utils import viewports
 
-move_camera(position=[-12, -1, 2], target=[0, 0, 0.5], steps=50)
-
-object_list = [
+# IAI robots
+robots = [
+    # "hsrb",
+    # "tiago_dual",
     "pr2",
     "stretch",
-    "hsrb",
-    "tiago_dual",
 ]
 
-for i in range(len(object_list)):
-    obj = object_list[i]
+for i in range(len(robots)):
+    robot = robots[i]
     create_prim(
-        usd_path=f"{os.getcwd()}/../usd/{obj}/{obj}.usd",
-        prim_path=f"/World/{obj}",
-        position=np.array([- i * 2 - 1, 1, 0.2]),
+        usd_path=f"{os.getcwd()}/../usd/{robot}/{robot}.usd",
+        prim_path=f"/World/{robot}",
+        position=np.array([-i * 2 - 1, 0, 0.05]),
         orientation=np.array([0, 0, 0, 1])
     )
-    refresh_view(steps=20, desc=f"Spawn {obj}")
-
-refresh_view(steps=50)
+    refresh_view(steps=30, desc=f"Spawn {robot}")
 
 
-# ## Delete Objects
+# ## Delete Robots
 
-# In[ ]:
+# In[8]:
 
 
-# from isaacsim.core.utils.prims import delete_prim
+from isaacsim.core.utils.prims import delete_prim
 
-# for obj in object_list:
-#     delete_prim(f"/World/{obj}")
-#     refresh_view(steps=10, desc=f"Delete {obj}")
+# for i in range(len(robots)):
+#     robot = robots[i]
+#     delete_prim(f"/World/{robot}")
+#     refresh_view(steps=10, desc=f"Delete {robot}")
+
+
+# ## Create Robots Articulations
+
+# In[9]:
+
+
+from isaacsim.core.prims import Articulation
+
+robot_arts = {}
+
+for robot in robots:
+    robot_arts[robot] = Articulation(prim_paths_expr=f"/World/{robot}", name=f"my_{robot}")
+
+
+# ## Get Joint Info
+
+# In[35]:
+
+
+import pandas as pd
+
+def get_joint_info(robot_art):
+    joint_names = robot_art.dof_names
+    joint_num = robot_art.num_dof
+    joint_types = robot_art.get_dof_types()
+    joint_limits = robot_art.get_dof_limits()[0]
+    joint_states = robot_art.get_joint_positions()[0]
+
+    df = pd.DataFrame({
+        "Joint Name": joint_names,
+        "Current Position": joint_states,
+        "Lower Limit": [lim[0] for lim in joint_limits],
+        "Upper Limit": [lim[1] for lim in joint_limits],
+        "Type": joint_types,
+    })
+
+    unlimited = 3e38
+    df["Lower Limit"] = df["Lower Limit"].mask(df["Lower Limit"] < -unlimited, -np.inf)
+    df["Upper Limit"] = df["Upper Limit"].mask(df["Upper Limit"] > unlimited, np.inf)
+    return df
+
+get_joint_info(robot_arts["stretch"]).style.format({
+    "Lower Limit": "{:.8f}",
+    "Upper Limit": "{:.8f}",
+    "Current Position": "{:.8f}"
+})
+
+
+# ## Low Level Joint Control
+
+# In[11]:
+
+
+def set_joint_pos(
+    robot_art,
+    joint_pos: dict = None,
+    teleport: bool = False,
+    max_steps: int = 100,
+    threshold: float = 0.01
+) -> dict:
+    """
+    Set target joint positions for a robot Articulation.
+
+    Args:
+        robot_art: Isaac Sim ArticulationView or similar class
+        joint_pos (dict): {joint_name: target_position}
+        teleport (bool): If True, instantly set joint positions
+        max_steps (int): Maximum simulation steps to wait
+        threshold (float): Required closeness between current and target joint positions
+
+    Returns:
+        dict: {
+            "success": bool,
+            "steps_used": int | None,
+            "report": DataFrame | None,
+            "message": str
+        }
+    """
+    if joint_pos is None:
+        joint_pos = {}
+
+    joint_limits = robot_art.get_dof_limits()[0]
+    joint_names = np.array(robot_art.dof_names)
+    target_joint_pos = robot_art.get_joint_positions()[0].copy()
+
+    # --- Apply limits and fill in target positions ---
+    for name, value in joint_pos.items():
+        idx = robot_art.get_dof_index(name)
+        lower, upper = joint_limits[idx]
+        clamped = np.clip(value, lower, upper)
+        target_joint_pos[idx] = clamped
+
+    # --- Instant teleport mode ---
+    if teleport:
+        robot_art.set_joint_positions([target_joint_pos])
+        refresh_view(steps=10, desc="Teleport joints to target position")
+        return {
+            "success": True,
+            "steps_used": 0,
+            "report": None,
+            "message": "Joints teleported successfully."
+        }
+
+    # --- Motion mode: send targets ---
+    robot_art.set_joint_position_targets([target_joint_pos])
+    if max_steps == 0:
+        return None
+
+    check_indices = np.array([robot_art.get_dof_index(name) for name in joint_pos])
+
+    reached = False
+    last_joint_pos = None
+
+    # for step in tqdm(range(max_steps), file=sys.stdout):
+        # my_world.step(render=True)
+    eps_size = 10
+    steps = max_steps
+    while steps > 0:
+        refresh_view(steps=10, desc=f"{steps} steps left...")
+        steps -= 10
+        last_joint_pos = robot_art.get_joint_positions()[0]
+
+        abs_diff = np.abs(last_joint_pos[check_indices] - target_joint_pos[check_indices])
+        reached = (abs_diff <= threshold).all()
+
+        if reached:
+            return {
+                "success": True,
+                "steps_used": max_steps - steps,
+                "report": None,
+                "message": "Joints reached target positions."
+            }
+
+    # --- Not reached: prepare failure report ---
+    diff_mask = abs_diff >= threshold
+    diff_indices = check_indices[diff_mask]
+
+    report = pd.DataFrame({
+        "Joint Name": joint_names[diff_indices],
+        "Current Position": last_joint_pos[diff_indices],
+        "Target Position": target_joint_pos[diff_indices],
+        "Abs Diff": abs_diff[diff_mask]
+    })
+
+    return {
+        "success": False,
+        "steps_used": max_steps,
+        "report": report,
+        "message": "Failed to reach target positions within step limit."
+    }
+
+
+# ## Reset Robot
+
+# In[31]:
+
+
+def set_init_pose():
+    my_world.reset()
+    refresh_view()
+
+    set_joint_pos(robot_arts["pr2"], {
+        "torso_lift_joint": 0.3,
+        # right_side
+        "r_gripper_l_finger_joint": 0.5,
+        "r_shoulder_pan_joint": -1.7125,
+        "r_shoulder_lift_joint": -0.25672,
+        "r_upper_arm_roll_joint": -1.46335,
+        "r_elbow_flex_joint": -2.12,
+        "r_forearm_roll_joint": 1.76632,
+        "r_wrist_flex_joint": 1.76632,
+        "r_forearm_roll_joint": 1.76632,
+        "r_wrist_flex_joint": -0.10001,
+        "r_wrist_roll_joint": 0.05106,
+        # left_side
+        "l_gripper_l_finger_joint": 0.5,
+        "l_shoulder_pan_joint": 1.7125,
+        "l_shoulder_lift_joint": -0.25672,
+        "l_upper_arm_roll_joint": 1.46335,
+        "l_elbow_flex_joint": -2.12,
+        "l_forearm_roll_joint": -1.76632,
+        "l_wrist_flex_joint": 1.76632,
+        "l_forearm_roll_joint": -1.76632,
+        "l_wrist_flex_joint": -0.10001,
+        "l_wrist_roll_joint": 0.05106,
+    })
+
+    set_joint_pos(robot_arts["stretch"], {
+        "joint_lift": 0.7
+    })
+
+set_init_pose()
+
+
+# ## Test Joints and Base Move
+
+# In[33]:
+
+
+def test_dof_joints(robot_art):
+    for row in get_joint_info(robot_art).itertuples(index=True):
+        joint_idx = row[0]
+        init_pos = row[2]
+        joint_name = row[1]
+        lower = row[3]
+        upper = row[4]
+        if lower == -np.inf or upper == np.inf:
+            continue
+        print(joint_name)
+        teleport = False
+        max_steps = 20
+        for val in [lower, upper, init_pos]:
+            res = set_joint_pos(
+                robot_art,
+                {joint_name: val},
+                teleport=teleport,
+                max_steps=max_steps
+            )
+            if res is not None and not res["success"]:
+                print(res["report"])
+
+def test_base_move(robot_art, velocity=5):
+    joint_names = robot_art.dof_names
+    joint_num = robot_art.num_dof
+    # find wheel joints
+    wheel_indices = np.where(np.char.find(joint_names, "wheel") >= 0)[0]
+    left_wheel_indices = np.where(
+        (np.char.find(joint_names, "left_wheel") != -1) |
+        (np.char.find(joint_names, "l_caster_l_wheel") != -1) |
+        (np.char.find(joint_names, "l_caster_r_wheel") != -1)
+    )[0]
+    right_wheel_indices = np.where(
+        (np.char.find(joint_names, "right_wheel") != -1) |
+        (np.char.find(joint_names, "r_caster_l_wheel") != -1) |
+        (np.char.find(joint_names, "r_caster_r_wheel") != -1)
+    )[0]
+
+    next_joint_vel = np.zeros(joint_num)
+    next_joint_vel[wheel_indices] = velocity
+    robot_art.set_joint_velocity_targets([next_joint_vel])
+    refresh_view(steps=50, desc="Forward")
+
+    next_joint_vel = np.zeros(joint_num)
+    next_joint_vel[left_wheel_indices] = -velocity  * 5
+    next_joint_vel[right_wheel_indices] = velocity  * 5
+    robot_art.set_joint_velocity_targets([next_joint_vel])
+    refresh_view(steps=100, desc="Turn Left")
+
+    next_joint_vel = np.zeros(joint_num)
+    next_joint_vel[wheel_indices] = -velocity
+    robot_art.set_joint_velocity_targets([next_joint_vel])
+    refresh_view(steps=50, desc="Backward")
+
+    robot_art.set_joint_velocities([np.zeros(joint_num)])
+    refresh_view(steps=10, desc="Stop")
+
+
+for robot in robots:
+    print(f"Testing {robot}")
+    test_base_move(robot_arts[robot])
+    test_dof_joints(robot_arts[robot])
 
 
 # ## Enable ROS2 Bridge
 # 
 # Next, we will control the robot's movement through ROS messages.
 
-# In[ ]:
+# In[34]:
 
 
 from isaacsim.core.utils.extensions import enable_extension
 
 enable_extension("isaacsim.ros2.bridge")
-# enable_extension("omni.physx.supportui")
 
 
 # ## Create a ROS subscriber
 # 
 # Listen to messages on topic `cmd_vel`
 
-# In[ ]:
+# In[63]:
 
 
 import rclpy
@@ -329,20 +516,62 @@ from geometry_msgs.msg import Twist
 if not rclpy.ok():
     rclpy.init(args=None)
 
+
+def cmd_vel_to_wheel_speeds(v, w, wheel_base, wheel_radius=None):
+    """
+    Convert cmd_vel (linear + angular) to differential wheel speeds.
+
+    Args:
+        v: linear velocity (m/s)
+        w: angular velocity (rad/s)
+        wheel_base: distance between wheels (m)
+        wheel_radius: wheel radius (m) (optional)
+
+    Returns:
+        If wheel_radius is None:
+            (v_left, v_right) in m/s
+        Else:
+            (w_left, w_right) in rad/s
+    """
+    v_left  = v - w * wheel_base / 2
+    v_right = v + w * wheel_base / 2
+
+    if wheel_radius is None:
+        return v_left, v_right
+    else:
+        return v_left / wheel_radius, v_right / wheel_radius
+
+
 # Update robot command
 def cmd_vel_callback(msg):
-    global commands
-    commands = [msg.linear.x, 0.0, msg.angular.z]
+    factor = 0.15
+    lv, rv = cmd_vel_to_wheel_speeds(
+        msg.linear.x,
+        msg.angular.z, 
+        0.3407,
+        wheel_radius=0.0125
+    )
+    robot_art = robot_arts["stretch"]
+    next_joint_vel = np.zeros(robot_art.num_dof)
+    next_joint_vel[1] = lv * factor
+    next_joint_vel[3] = rv * factor
+    robot_art.set_joint_velocity_targets([next_joint_vel])
 
 node = rclpy.create_node('cmd_vel_listener')
 node.create_subscription(Twist, 'cmd_vel', cmd_vel_callback, 10)
+
+
+# In[62]:
+
+
+# node.destroy_node()
 
 
 # ## Open `rqt_robot_steering`
 # 
 # This is a GUI tool that broadcasts cmd_vel messages.
 
-# In[ ]:
+# In[37]:
 
 
 import subprocess
