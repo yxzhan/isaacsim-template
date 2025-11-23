@@ -17,7 +17,7 @@
 # 
 # If the virtual desktop does not pop up, manually click the "Open Desktop in new Tab".
 
-# In[1]:
+# In[ ]:
 
 
 from IPython import get_ipython
@@ -42,7 +42,7 @@ if in_notebook:
 # 
 # <div style="color:red">This will take some time, so give it a minute and wait for it to say <b>"SimulationApp Ready!"</b> before you go to next step.</div>
 
-# In[1]:
+# In[ ]:
 
 
 from isaacsim import SimulationApp
@@ -56,7 +56,7 @@ original_stderr = sys.stderr
 
 simulation_app = SimulationApp({
     "headless": False,
-    "hide_ui": True,
+    # "hide_ui": True,
     "width": 1280,
     "height": 960,
     "renderer": "RaytracedLighting",
@@ -74,7 +74,7 @@ print('SimulationApp Ready!')
 # 
 # Setting physics to update at 200 Hz, rendering at 25 Hz, and using meters as the unit scale.
 
-# In[2]:
+# In[ ]:
 
 
 from isaacsim.core.api import World
@@ -99,7 +99,7 @@ prim.GetReferences().AddReference(asset_path)
 # 
 # Create a helper function to step the simulation world and update view. For the later code cells, wait for the progress bar to complete before proceeding to the next step.
 
-# In[3]:
+# In[ ]:
 
 
 from tqdm import tqdm
@@ -117,7 +117,7 @@ refresh_view()
 # Asset Source:
 # https://github.com/Multiverse-Framework/Multiverse-Tutorials/tree/main/resources/apartmentICRA_full/usda
 
-# In[4]:
+# In[ ]:
 
 
 import numpy as np
@@ -140,7 +140,7 @@ refresh_view(steps=30, desc="Spawn Apartment")
 
 # ## Add lights
 
-# In[5]:
+# In[ ]:
 
 
 from isaacsim.core.utils.prims import create_prim
@@ -158,7 +158,7 @@ for i in range(1,4):
 
 # ## Move Viewport Camera
 
-# In[6]:
+# In[ ]:
 
 
 import numpy as np
@@ -185,12 +185,12 @@ def move_camera(position, target, steps=100, smooth=True):
 
     refresh_view(steps=10)
 
-move_camera(position=[-7, -2, 2], target=[-1, 0, 1], steps=50)
+move_camera(position=[-7, -2, 2], target=[-1, 1, 1], steps=50)
 
 
 # ## Spawn Robots
 
-# In[7]:
+# In[ ]:
 
 
 import os
@@ -210,7 +210,7 @@ for i in range(len(robots)):
     create_prim(
         usd_path=f"{os.getcwd()}/../usd/{robot}/{robot}.usd",
         prim_path=f"/World/{robot}",
-        position=np.array([-i * 2 - 1, 0, 0.05]),
+        position=np.array([-i * 3 - 1, 0, 0.05]),
         orientation=np.array([0, 0, 0, 1])
     )
     refresh_view(steps=30, desc=f"Spawn {robot}")
@@ -218,7 +218,7 @@ for i in range(len(robots)):
 
 # ## Delete Robots
 
-# In[8]:
+# In[ ]:
 
 
 from isaacsim.core.utils.prims import delete_prim
@@ -231,7 +231,7 @@ from isaacsim.core.utils.prims import delete_prim
 
 # ## Create Robots Articulations
 
-# In[9]:
+# In[ ]:
 
 
 from isaacsim.core.prims import Articulation
@@ -244,7 +244,7 @@ for robot in robots:
 
 # ## Get Joint Info
 
-# In[10]:
+# In[ ]:
 
 
 import pandas as pd
@@ -279,7 +279,7 @@ if in_notebook:
 
 # ## Low Level Joint Control
 
-# In[11]:
+# In[ ]:
 
 
 def set_joint_pos(
@@ -383,7 +383,7 @@ def set_joint_pos(
 
 # ## Reset Robot
 
-# In[12]:
+# In[ ]:
 
 
 def set_init_pose():
@@ -427,7 +427,7 @@ set_init_pose()
 
 # ## Test Joints and Base Move
 
-# In[13]:
+# In[ ]:
 
 
 def test_dof_joints(robot_art):
@@ -496,9 +496,45 @@ def test_base_move(robot_art, velocity=5):
 # test_base_move(robot_arts["stretch"], 5)
 
 
+# ## Spawn Kitchen Objects
+
+# In[ ]:
+
+
+import os
+import random
+
+asset_dir = "/mnt/dev-tools/Multiverse/Multiverse-Assets/objects"
+
+asset_names = [name for name in os.listdir(asset_dir) 
+                    if os.path.isdir(os.path.join(asset_dir, name))]
+
+sampled = random.sample(asset_names, 10)
+
+for asset in sampled:
+    create_prim(
+        usd_path=f"{asset_dir}/{asset}/{asset}.usda",
+        prim_path=f"/World/{asset}",
+        position=np.array([-1.8, -1.5, 1.5]),
+    )
+    refresh_view(steps=20, desc=f"Spawn {asset}")
+
+refresh_view(steps=80)
+
+
+# ## Delete Kitchen Objects
+
+# In[ ]:
+
+
+# for asset in sampled:
+#     delete_prim(f"/World/{asset}")
+# refresh_view(steps=10, desc="Delete kitchen objects")
+
+
 # ## Add Camera Sensors
 
-# In[14]:
+# In[ ]:
 
 
 import yaml
@@ -507,35 +543,40 @@ from pxr import Usd, UsdGeom
 from isaacsim.sensors.camera import Camera
 import isaacsim.core.utils.numpy.rotations as rot_utils
 
-def create_cam(prim_path, focal_length=1.0):
+def create_cam(prim_path, focal_length=1.0, orientation=[0, 0, 0]):
     stage = omni.usd.get_context().get_stage()
     UsdGeom.Camera.Define(stage, prim_path)
     camera = Camera(
         prim_path=prim_path,
         frequency=30,
         resolution=(1280, 720),
-        orientation=rot_utils.euler_angles_to_quats(np.array([-90, 0, 0]), degrees=True),
+        orientation=rot_utils.euler_angles_to_quats(np.array(orientation), degrees=True),
     )
     camera.initialize()
     camera.set_focal_length(focal_length)
-    camera.set_clipping_range(near_distance=0.1, far_distance=20)
+    camera.set_clipping_range(near_distance=0.01, far_distance=20)
     return camera
 
-cam_prim = "/World/stretch/link_head_tilt/camera_bottom_screw_frame/camera_link/camera_color_frame/camera_color_optical_frame"
-stretch_cam = create_cam(cam_prim)
+
+head_cam_prim = "/World/stretch/link_head_tilt/camera_bottom_screw_frame/camera_link/camera_color_frame/camera_color_optical_frame"
+gripper_cam_prim = "/World/stretch/link_wrist_roll/link_gripper_s3_body/gripper_camera_bottom_screw_frame/gripper_camera_link/gripper_camera_color_frame/gripper_camera_color_optical_frame"
+
+stretch_head_cam = create_cam(head_cam_prim, orientation=[-90, 0, 0])
+stretch_gripper_cam = create_cam(gripper_cam_prim, orientation=[0, 0, 0])
+
 refresh_view(steps=50)
 
 
-# In[15]:
+# In[ ]:
 
 
 set_joint_pos(robot_arts["stretch"], {
+    "joint_lift": 1,
     "joint_head_tilt": -0.3,
-    # "joint_head_pan": -3
 })
 
 
-# In[16]:
+# In[ ]:
 
 
 import numpy as np
@@ -545,7 +586,7 @@ import matplotlib.pyplot as plt
 yolo_model = YOLO("yolo11n-seg.pt")
 
 if in_notebook:
-    rgb = stretch_cam.get_rgba()[:, :, :3]
+    rgb = stretch_head_cam.get_rgba()[:, :, :3]
     seg_results = yolo_model.predict(source=rgb, save=False, verbose=False)
     seg_img = seg_results[0].plot()
     plt.imshow(seg_img)
@@ -557,7 +598,7 @@ if in_notebook:
 # 
 # Next, we will control the robot's movement through ROS messages.
 
-# In[17]:
+# In[ ]:
 
 
 from isaacsim.core.utils.extensions import enable_extension
@@ -569,7 +610,7 @@ enable_extension("isaacsim.ros2.bridge")
 # 
 # Listen to messages on topic `cmd_vel`
 
-# In[18]:
+# In[ ]:
 
 
 import rclpy
@@ -632,16 +673,17 @@ cmd_node = CmdVelController(robot_arts["stretch"])
 
 # ## Camera Publisher
 
-# In[19]:
+# In[ ]:
 
 
 from sensor_msgs.msg import Image
+from rclpy.node import Node
 import numpy as np
 
 class CameraPublisher(Node):
-    def __init__(self):
-        super().__init__('camera_publisher')
-        self.pub = self.create_publisher(Image, '/camera/image_raw', 10)
+    def __init__(self, node_name='camera_publisher', topic="/camera/image_raw"):
+        super().__init__(node_name)
+        self.pub = self.create_publisher(Image, topic, 10)
 
     def publish_image(self, rgb_array):
         msg = Image()
@@ -653,14 +695,15 @@ class CameraPublisher(Node):
         msg.data = rgb_array.flatten().tolist()
         self.pub.publish(msg)
 
-cam_node = CameraPublisher()
+head_cam_node = CameraPublisher(node_name="head_cam_node", topic="/head_camera/image_raw")
+gripper_cam_node = CameraPublisher(node_name="gripper_cam_node", topic="/gripper_camera/image_raw")
 
 
 # ## Open `rqt_robot_steering`
 # 
 # This is a GUI tool that broadcasts cmd_vel messages.
 
-# In[20]:
+# In[ ]:
 
 
 import subprocess
@@ -686,20 +729,27 @@ subprocess.Popen(
 # 
 # Once the simulation loop is running, you can drag the  sliders to control the robot's forward/backward movement and steering.
 
-# In[22]:
+# In[ ]:
 
 
-steps = 1500
+steps = 3000
 desc = "ROS Spin"
 bar_format = "{l_bar}{bar}| {n_fmt}/{total_fmt} steps] {elapsed_s:.2f}s"
 for i in tqdm(range(steps), desc=desc, ncols=60, bar_format=bar_format):
     my_world.step(render=True)
     rclpy.spin_once(cmd_node, timeout_sec=0.0)
-    if i % 1 == 0:
-        raw_image = stretch_cam.get_rgba()[:, :, :3]
+    if i % 3 == 0:
+        # head cam
+        raw_image = stretch_head_cam.get_rgba()[:, :, :3]
         seg_img = yolo_model.predict(source=raw_image, save=False, verbose=False)[0].plot()
-        cam_node.publish_image(seg_img)
-        rclpy.spin_once(cam_node, timeout_sec=0.0)
+        head_cam_node.publish_image(seg_img)
+        rclpy.spin_once(head_cam_node, timeout_sec=0.0)
+        # gripper cam
+        raw_image = stretch_gripper_cam.get_rgba()[:, :, :3]
+        seg_img = yolo_model.predict(source=raw_image, save=False, verbose=False)[0].plot()
+        gripper_cam_node.publish_image(seg_img)
+        rclpy.spin_once(gripper_cam_node, timeout_sec=0.0)
+
 
 
 # ## Run the simulation continuously
@@ -731,11 +781,12 @@ for i in tqdm(range(steps), desc=desc, ncols=60, bar_format=bar_format):
 
 # ## Shutdown
 
-# In[31]:
+# In[ ]:
 
 
 cmd_node.destroy_node()
-cam_node.destroy_node()
+head_cam_node.destroy_node()
+gripper_cam_node.destroy_node()
 
 
 # In[ ]:

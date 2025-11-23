@@ -4,7 +4,9 @@
 
 This is a template repo for running modern robot simulator (such as Isaac Sim and Unreal Engine) on the GPU-enabled AIRCOR VRB cloud server.
 
-![](./docs/demo.gif)
+<video width="640" controls autoplay loop>
+  <source src="https://raw.githubusercontent.com/yxzhan/isaacsim-template/main/docs/demo.mp4" type="video/mp4">
+</video>
 
 > ### Access Requirements:
 > 
