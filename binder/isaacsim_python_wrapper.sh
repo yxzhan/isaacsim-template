@@ -7,6 +7,9 @@ unset LD_PRELOAD
 # Clear default ROS ENV
 unset PYTHONPATH
 
+# unset CONDA_PREFIX
+export PYTHONPATH=/mnt/dev-tools/conda_py311/lib/python3.11/site-packages
+
 # Isaac Sim ROS2 Bridge
 export LD_LIBRARY_PATH=$ISAACSIM_PATH/exts/isaacsim.ros2.bridge/$ROS_DISTRO/lib
 

@@ -17,7 +17,7 @@
 # 
 # If the virtual desktop does not pop up, manually click the "Open Desktop in new Tab".
 
-# In[ ]:
+# In[1]:
 
 
 from IPython import get_ipython
@@ -50,6 +50,7 @@ from IPython.display import clear_output
 import sys
 import builtins
 
+in_notebook = get_ipython().__class__.__name__ == "ZMQInteractiveShell"
 original_stdout = sys.stdout
 original_stderr = sys.stderr
 
@@ -200,8 +201,8 @@ from isaacsim.core.utils.prims import create_prim
 robots = [
     # "hsrb",
     # "tiago_dual",
-    "pr2",
     "stretch",
+    "pr2",
 ]
 
 for i in range(len(robots)):
@@ -243,7 +244,7 @@ for robot in robots:
 
 # ## Get Joint Info
 
-# In[35]:
+# In[10]:
 
 
 import pandas as pd
@@ -268,11 +269,12 @@ def get_joint_info(robot_art):
     df["Upper Limit"] = df["Upper Limit"].mask(df["Upper Limit"] > unlimited, np.inf)
     return df
 
-get_joint_info(robot_arts["stretch"]).style.format({
-    "Lower Limit": "{:.8f}",
-    "Upper Limit": "{:.8f}",
-    "Current Position": "{:.8f}"
-})
+if in_notebook:
+    display(get_joint_info(robot_arts["stretch"]).style.format({
+        "Lower Limit": "{:.8f}",
+        "Upper Limit": "{:.8f}",
+        "Current Position": "{:.8f}"
+    }))
 
 
 # ## Low Level Joint Control
@@ -381,15 +383,21 @@ def set_joint_pos(
 
 # ## Reset Robot
 
-# In[31]:
+# In[12]:
 
 
 def set_init_pose():
     my_world.reset()
     refresh_view()
 
+
+    set_joint_pos(robot_arts["stretch"], {
+        "joint_lift": 0.7,
+        # "joint_head_pan": -3
+    })
+
     set_joint_pos(robot_arts["pr2"], {
-        "torso_lift_joint": 0.3,
+        # "torso_lift_joint": 0.3,
         # right_side
         "r_gripper_l_finger_joint": 0.5,
         "r_shoulder_pan_joint": -1.7125,
@@ -414,16 +422,12 @@ def set_init_pose():
         "l_wrist_roll_joint": 0.05106,
     })
 
-    set_joint_pos(robot_arts["stretch"], {
-        "joint_lift": 0.7
-    })
-
 set_init_pose()
 
 
 # ## Test Joints and Base Move
 
-# In[33]:
+# In[13]:
 
 
 def test_dof_joints(robot_art):
@@ -437,7 +441,7 @@ def test_dof_joints(robot_art):
             continue
         print(joint_name)
         teleport = False
-        max_steps = 20
+        max_steps = 100
         for val in [lower, upper, init_pos]:
             res = set_joint_pos(
                 robot_art,
@@ -470,8 +474,8 @@ def test_base_move(robot_art, velocity=5):
     refresh_view(steps=50, desc="Forward")
 
     next_joint_vel = np.zeros(joint_num)
-    next_joint_vel[left_wheel_indices] = -velocity  * 5
-    next_joint_vel[right_wheel_indices] = velocity  * 5
+    next_joint_vel[left_wheel_indices] = -velocity
+    next_joint_vel[right_wheel_indices] = velocity
     robot_art.set_joint_velocity_targets([next_joint_vel])
     refresh_view(steps=100, desc="Turn Left")
 
@@ -484,17 +488,76 @@ def test_base_move(robot_art, velocity=5):
     refresh_view(steps=10, desc="Stop")
 
 
-for robot in robots:
-    print(f"Testing {robot}")
-    test_base_move(robot_arts[robot])
-    test_dof_joints(robot_arts[robot])
+# for robot in robots:
+#     print(f"Testing {robot}")
+#     test_base_move(robot_arts[robot])
+#     test_dof_joints(robot_arts[robot])
+# test_dof_joints(robot_arts["stretch"])
+# test_base_move(robot_arts["stretch"], 5)
+
+
+# ## Add Camera Sensors
+
+# In[14]:
+
+
+import yaml
+import omni
+from pxr import Usd, UsdGeom
+from isaacsim.sensors.camera import Camera
+import isaacsim.core.utils.numpy.rotations as rot_utils
+
+def create_cam(prim_path, focal_length=1.0):
+    stage = omni.usd.get_context().get_stage()
+    UsdGeom.Camera.Define(stage, prim_path)
+    camera = Camera(
+        prim_path=prim_path,
+        frequency=30,
+        resolution=(1280, 720),
+        orientation=rot_utils.euler_angles_to_quats(np.array([-90, 0, 0]), degrees=True),
+    )
+    camera.initialize()
+    camera.set_focal_length(focal_length)
+    camera.set_clipping_range(near_distance=0.1, far_distance=20)
+    return camera
+
+cam_prim = "/World/stretch/link_head_tilt/camera_bottom_screw_frame/camera_link/camera_color_frame/camera_color_optical_frame"
+stretch_cam = create_cam(cam_prim)
+refresh_view(steps=50)
+
+
+# In[15]:
+
+
+set_joint_pos(robot_arts["stretch"], {
+    "joint_head_tilt": -0.3,
+    # "joint_head_pan": -3
+})
+
+
+# In[16]:
+
+
+import numpy as np
+from ultralytics import YOLO
+import matplotlib.pyplot as plt
+
+yolo_model = YOLO("yolo11n-seg.pt")
+
+if in_notebook:
+    rgb = stretch_cam.get_rgba()[:, :, :3]
+    seg_results = yolo_model.predict(source=rgb, save=False, verbose=False)
+    seg_img = seg_results[0].plot()
+    plt.imshow(seg_img)
+    plt.axis("off")
+    plt.show()
 
 
 # ## Enable ROS2 Bridge
 # 
 # Next, we will control the robot's movement through ROS messages.
 
-# In[34]:
+# In[17]:
 
 
 from isaacsim.core.utils.extensions import enable_extension
@@ -506,72 +569,98 @@ enable_extension("isaacsim.ros2.bridge")
 # 
 # Listen to messages on topic `cmd_vel`
 
-# In[63]:
+# In[18]:
 
 
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
+import numpy as np
 
 if not rclpy.ok():
     rclpy.init(args=None)
 
+class CmdVelController(Node):
+    def __init__(self, robot_art):
+        super().__init__('cmd_vel_listener')
 
-def cmd_vel_to_wheel_speeds(v, w, wheel_base, wheel_radius=None):
-    """
-    Convert cmd_vel (linear + angular) to differential wheel speeds.
+        # External robot handle
+        self.robot_art = robot_art
 
-    Args:
-        v: linear velocity (m/s)
-        w: angular velocity (rad/s)
-        wheel_base: distance between wheels (m)
-        wheel_radius: wheel radius (m) (optional)
+        # Subscribe to cmd_vel
+        self.subscription = self.create_subscription(
+            Twist,
+            'cmd_vel',
+            self.cmd_vel_callback,
+            10
+        )
 
-    Returns:
-        If wheel_radius is None:
-            (v_left, v_right) in m/s
-        Else:
-            (w_left, w_right) in rad/s
-    """
-    v_left  = v - w * wheel_base / 2
-    v_right = v + w * wheel_base / 2
-
-    if wheel_radius is None:
-        return v_left, v_right
-    else:
-        return v_left / wheel_radius, v_right / wheel_radius
+        # Stretch parameters
+        self.wheel_base = 0.3407
+        self.wheel_radius = 0.0125
+        self.factor = 0.2
 
 
-# Update robot command
-def cmd_vel_callback(msg):
-    factor = 0.15
-    lv, rv = cmd_vel_to_wheel_speeds(
-        msg.linear.x,
-        msg.angular.z, 
-        0.3407,
-        wheel_radius=0.0125
-    )
-    robot_art = robot_arts["stretch"]
-    next_joint_vel = np.zeros(robot_art.num_dof)
-    next_joint_vel[1] = lv * factor
-    next_joint_vel[3] = rv * factor
-    robot_art.set_joint_velocity_targets([next_joint_vel])
+    def cmd_vel_to_wheel_speeds(self, v, w):
+        """
+        Convert linear (v) and angular (w) velocity into left/right wheel angular speeds.
+        Returns wheel speeds in rad/s.
+        """
+        v_left = v - w * self.wheel_base / 2
+        v_right = v + w * self.wheel_base / 2
 
-node = rclpy.create_node('cmd_vel_listener')
-node.create_subscription(Twist, 'cmd_vel', cmd_vel_callback, 10)
+        return v_left / self.wheel_radius, v_right / self.wheel_radius
 
 
-# In[62]:
+    def cmd_vel_callback(self, msg):
+        # Convert cmd_vel to wheel velocities
+        lv, rv = self.cmd_vel_to_wheel_speeds(
+            msg.linear.x,
+            msg.angular.z
+        )
+
+        next_joint_vel = np.zeros(self.robot_art.num_dof)
+
+        # Wheel joint indices (matching your original code)
+        next_joint_vel[1] = lv * self.factor
+        next_joint_vel[3] = rv * self.factor
+
+        self.robot_art.set_joint_velocities([next_joint_vel])
+
+cmd_node = CmdVelController(robot_arts["stretch"])
 
 
-# node.destroy_node()
+# ## Camera Publisher
+
+# In[19]:
+
+
+from sensor_msgs.msg import Image
+import numpy as np
+
+class CameraPublisher(Node):
+    def __init__(self):
+        super().__init__('camera_publisher')
+        self.pub = self.create_publisher(Image, '/camera/image_raw', 10)
+
+    def publish_image(self, rgb_array):
+        msg = Image()
+        msg.height = rgb_array.shape[0]
+        msg.width = rgb_array.shape[1]
+        msg.encoding = "rgb8"
+        msg.is_bigendian = 0
+        msg.step = rgb_array.shape[1] * 3
+        msg.data = rgb_array.flatten().tolist()
+        self.pub.publish(msg)
+
+cam_node = CameraPublisher()
 
 
 # ## Open `rqt_robot_steering`
 # 
 # This is a GUI tool that broadcasts cmd_vel messages.
 
-# In[37]:
+# In[20]:
 
 
 import subprocess
@@ -580,7 +669,8 @@ os.environ.pop("PYTHONPATH", None)
 steer_gui = """
 source /opt/ros/jazzy/setup.bash
 source $DEV_TOOLS_PATH/ros_ws/apartment_ws/install/setup.bash
-ros2 run rqt_robot_steering rqt_robot_steering
+ros2 run rqt_robot_steering rqt_robot_steering &
+rviz2 -d ./camera.rviz
 """
 cmd = ["bash", "-c", steer_gui]
 subprocess.Popen(
@@ -596,7 +686,7 @@ subprocess.Popen(
 # 
 # Once the simulation loop is running, you can drag the  sliders to control the robot's forward/backward movement and steering.
 
-# In[ ]:
+# In[22]:
 
 
 steps = 1500
@@ -604,7 +694,12 @@ desc = "ROS Spin"
 bar_format = "{l_bar}{bar}| {n_fmt}/{total_fmt} steps] {elapsed_s:.2f}s"
 for i in tqdm(range(steps), desc=desc, ncols=60, bar_format=bar_format):
     my_world.step(render=True)
-    rclpy.spin_once(node, timeout_sec=0.0)
+    rclpy.spin_once(cmd_node, timeout_sec=0.0)
+    if i % 1 == 0:
+        raw_image = stretch_cam.get_rgba()[:, :, :3]
+        seg_img = yolo_model.predict(source=raw_image, save=False, verbose=False)[0].plot()
+        cam_node.publish_image(seg_img)
+        rclpy.spin_once(cam_node, timeout_sec=0.0)
 
 
 # ## Run the simulation continuously
@@ -636,13 +731,18 @@ for i in tqdm(range(steps), desc=desc, ncols=60, bar_format=bar_format):
 
 # ## Shutdown
 
+# In[31]:
+
+
+cmd_node.destroy_node()
+cam_node.destroy_node()
+
+
 # In[ ]:
 
 
 simulation_app.close()
 
-
-# !jupyter nbconvert --to python apartment.ipynb
 
 # ## Covert notebook to Python script
 # 

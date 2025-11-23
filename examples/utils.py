@@ -50,6 +50,7 @@ ISAACSIM_ENV = """
 # unset LD_PRELOAD
 # Clear default ROS ENV
 unset PYTHONPATH
+export PYTHONPATH=/mnt/dev-tools/conda_py311/lib/python3.11/site-packages
 # source /mnt/dev-tools/ros_ws/jazzy_py311/install/setup.bash
 # export FASTRTPS_DEFAULT_PROFILES_FILE=/mnt/dev-tools/ros_ws/IsaacSim-ros_workspaces/jazzy_ws/fastdds.xml
 export LD_LIBRARY_PATH=$ISAACSIM_PATH/exts/isaacsim.ros2.bridge/$ROS_DISTRO/lib
@@ -430,6 +431,9 @@ def display_ui():
         widgets.Label(value="Full Isaac Sim Examples:"),
         examples_grid
     ]
+
+    run_in_bg.value = True
+
 
 
 # =============================================================================
