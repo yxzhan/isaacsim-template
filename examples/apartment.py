@@ -125,6 +125,7 @@ from isaacsim.core.utils.prims import create_prim
 from isaacsim.core.utils import viewports
 
 env_usd_path = "/mnt/dev-tools/usd/apartment/apartmentICRA.usda"
+
 create_prim(
     usd_path=env_usd_path,
     prim_path=f"/World/Apartment",
@@ -150,7 +151,7 @@ for i in range(1,4):
     create_prim(
         prim_path=f"/World/Ground/Light_{i}",
         prim_type="SphereLight",
-        attributes={"inputs:intensity": 15000},
+        attributes={"inputs:intensity": 10000},
         position=(-gap * i, 0, 2)
     )
     refresh_view(steps=10, desc="Add Lights")
@@ -199,10 +200,10 @@ from isaacsim.core.utils.prims import create_prim
 
 # IAI robots
 robots = [
-    # "hsrb",
-    # "tiago_dual",
     "stretch",
     "pr2",
+    # "hsrb",
+    # "tiago_dual",
 ]
 
 for i in range(len(robots)):
@@ -390,11 +391,10 @@ def set_init_pose():
     my_world.reset()
     refresh_view()
 
-
     set_joint_pos(robot_arts["stretch"], {
         "joint_lift": 0.7,
         # "joint_head_pan": -3
-    })
+    }, max_steps=0)
 
     set_joint_pos(robot_arts["pr2"], {
         # "torso_lift_joint": 0.3,
@@ -420,7 +420,9 @@ def set_init_pose():
         "l_forearm_roll_joint": -1.76632,
         "l_wrist_flex_joint": -0.10001,
         "l_wrist_roll_joint": 0.05106,
-    })
+    }, max_steps=0)
+
+    refresh_view(steps=50)
 
 set_init_pose()
 
@@ -441,7 +443,7 @@ def test_dof_joints(robot_art):
             continue
         print(joint_name)
         teleport = False
-        max_steps = 100
+        max_steps = 50
         for val in [lower, upper, init_pos]:
             res = set_joint_pos(
                 robot_art,
@@ -489,9 +491,9 @@ def test_base_move(robot_art, velocity=5):
 
 
 # for robot in robots:
-#     print(f"Testing {robot}")
-#     test_base_move(robot_arts[robot])
-#     test_dof_joints(robot_arts[robot])
+    # print(f"Testing {robot}")
+    # test_base_move(robot_arts[robot])
+    # test_dof_joints(robot_arts[robot])
 # test_dof_joints(robot_arts["stretch"])
 # test_base_move(robot_arts["stretch"], 5)
 
@@ -509,17 +511,28 @@ asset_dir = "/mnt/dev-tools/Multiverse/Multiverse-Assets/objects"
 asset_names = [name for name in os.listdir(asset_dir) 
                     if os.path.isdir(os.path.join(asset_dir, name))]
 
-sampled = random.sample(asset_names, 10)
+num_sample = 5
+sampled = random.sample(asset_names, num_sample)
+object_prims = []
 
-for asset in sampled:
+table_loc = np.array([
+    # [0.5, 0, 1], # Kitchen island
+    [-1.8, -1.5, 1],  # table right
+    # [-4, 1.5, 1],  # table left
+])
+
+for i in range(num_sample):
+    asset = sampled[i]
+    prim_path = f"/World/{asset}_{i}"
     create_prim(
         usd_path=f"{asset_dir}/{asset}/{asset}.usda",
-        prim_path=f"/World/{asset}",
-        position=np.array([-1.8, -1.5, 1.5]),
+        prim_path=prim_path,
+        position=table_loc[np.random.randint(len(table_loc))],
     )
+    object_prims.append(prim_path)
     refresh_view(steps=20, desc=f"Spawn {asset}")
 
-refresh_view(steps=80)
+refresh_view(steps=50)
 
 
 # ## Delete Kitchen Objects
@@ -527,9 +540,9 @@ refresh_view(steps=80)
 # In[ ]:
 
 
-# for asset in sampled:
-#     delete_prim(f"/World/{asset}")
-# refresh_view(steps=10, desc="Delete kitchen objects")
+# for prim in object_prims:
+#     delete_prim(prim)
+# refresh_view(steps=20, desc="Delete kitchen objects")
 
 
 # ## Add Camera Sensors
@@ -537,7 +550,6 @@ refresh_view(steps=80)
 # In[ ]:
 
 
-import yaml
 import omni
 from pxr import Usd, UsdGeom
 from isaacsim.sensors.camera import Camera
@@ -561,7 +573,7 @@ def create_cam(prim_path, focal_length=1.0, orientation=[0, 0, 0]):
 head_cam_prim = "/World/stretch/link_head_tilt/camera_bottom_screw_frame/camera_link/camera_color_frame/camera_color_optical_frame"
 gripper_cam_prim = "/World/stretch/link_wrist_roll/link_gripper_s3_body/gripper_camera_bottom_screw_frame/gripper_camera_link/gripper_camera_color_frame/gripper_camera_color_optical_frame"
 
-stretch_head_cam = create_cam(head_cam_prim, orientation=[-90, 0, 0])
+stretch_head_cam = create_cam(head_cam_prim, focal_length=1.5, orientation=[-90, 0, 0])
 stretch_gripper_cam = create_cam(gripper_cam_prim, orientation=[0, 0, 0])
 
 refresh_view(steps=50)
@@ -571,10 +583,12 @@ refresh_view(steps=50)
 
 
 set_joint_pos(robot_arts["stretch"], {
-    "joint_lift": 1,
+    # "joint_lift": 1,
     "joint_head_tilt": -0.3,
 })
 
+
+# ### Inspect Camera Data
 
 # In[ ]:
 
@@ -592,6 +606,42 @@ if in_notebook:
     plt.imshow(seg_img)
     plt.axis("off")
     plt.show()
+    rgb = stretch_gripper_cam.get_rgba()[:, :, :3]
+    seg_results = yolo_model.predict(source=rgb, save=False, verbose=False)
+    seg_img = seg_results[0].plot()
+    plt.imshow(seg_img)
+    plt.axis("off")
+    plt.show()
+
+
+# ## Add Lidar Sensor
+
+# In[ ]:
+
+
+from isaacsim.sensors.physx import RotatingLidarPhysX
+
+def create_laser(prim_path):
+    my_lidar = my_world.scene.add(
+        RotatingLidarPhysX(
+            prim_path=prim_path,
+            name="lidar",
+            translation=np.array([0, 0, 0])
+        )
+    )
+    my_lidar.add_depth_data_to_frame()
+    my_lidar.add_point_cloud_data_to_frame()
+    # my_lidar.add_zenith_data_to_frame()
+    my_lidar.add_azimuth_data_to_frame()
+    # my_lidar.add_semantics_data_to_frame()
+    # my_lidar.add_intensity_data_to_frame()
+    my_lidar.enable_visualization()
+    my_lidar.initialize()
+    return my_lidar
+
+# laser_prim = "/World/stretch/base_link/laser/lidar"
+# stretch_laser = create_laser(laser_prim)
+# refresh_view(steps=50)
 
 
 # ## Enable ROS2 Bridge
@@ -699,7 +749,52 @@ head_cam_node = CameraPublisher(node_name="head_cam_node", topic="/head_camera/i
 gripper_cam_node = CameraPublisher(node_name="gripper_cam_node", topic="/gripper_camera/image_raw")
 
 
-# ## Open `rqt_robot_steering`
+# ## Lidar Scan Publisher
+
+# In[ ]:
+
+
+from rclpy.node import Node
+from sensor_msgs.msg import LaserScan
+import numpy as np
+
+class LidarPublisher(Node):
+    def __init__(self, node_name="lidar_publisher", topic="/scan", frame_id="scan"):
+        super().__init__(node_name)
+        self.pub = self.create_publisher(LaserScan, topic, 10)
+        self.frame_id = frame_id
+
+    def publish_scan(self, ranges, angle_min, angle_max, angle_increment):
+        # Create LaserScan message
+        msg = LaserScan()
+
+        # Timestamp and frame
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = self.frame_id
+
+        # Angular settings
+        msg.angle_min = float(angle_min)
+        msg.angle_max = float(angle_max)
+        msg.angle_increment = float(angle_increment)
+
+        # Valid range limits (adjust if needed)
+        msg.range_min = 0.05
+        msg.range_max = 30.0
+
+        # Convert ranges to list
+        msg.ranges = ranges.tolist()
+
+        # Intensities (empty unless you have intensity data)
+        msg.intensities = []
+
+        # Publish the message
+        self.pub.publish(msg)
+
+
+# lidar_node = LidarPublisher(node_name="lidar_node")
+
+
+# ## Open `rqt_robot_steering` and `rviz2`
 # 
 # This is a GUI tool that broadcasts cmd_vel messages.
 
@@ -738,7 +833,7 @@ bar_format = "{l_bar}{bar}| {n_fmt}/{total_fmt} steps] {elapsed_s:.2f}s"
 for i in tqdm(range(steps), desc=desc, ncols=60, bar_format=bar_format):
     my_world.step(render=True)
     rclpy.spin_once(cmd_node, timeout_sec=0.0)
-    if i % 3 == 0:
+    if i % 1 == 0:
         # head cam
         raw_image = stretch_head_cam.get_rgba()[:, :, :3]
         seg_img = yolo_model.predict(source=raw_image, save=False, verbose=False)[0].plot()
@@ -749,6 +844,13 @@ for i in tqdm(range(steps), desc=desc, ncols=60, bar_format=bar_format):
         seg_img = yolo_model.predict(source=raw_image, save=False, verbose=False)[0].plot()
         gripper_cam_node.publish_image(seg_img)
         rclpy.spin_once(gripper_cam_node, timeout_sec=0.0)
+    # if i % 1 == 0:
+    #     # lidar_node
+    #     lidar_frame = stretch_laser.get_current_frame()
+    #     ranges = lidar_frame["depth"].flatten() / 100
+    #     azimuth = lidar_frame["azimuth"]
+    #     lidar_node.publish_scan(ranges, azimuth[0], azimuth[-1], np.deg2rad(1))
+    #     rclpy.spin_once(lidar_node, timeout_sec=0.0)
 
 
 
