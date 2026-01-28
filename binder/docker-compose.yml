@@ -5,13 +5,11 @@ services:
     build:
       context: ../
       dockerfile: ./binder/Dockerfile
-    stdin_open: true
-    tty: true
-    # set group id of the host machine, so we can edit contents of the mounted volumes in the jupyterlab
-    user: "jovyan:${GID}"
-    # user: root
+    # stdin_open: true
+    # tty: true
+    user: root
+    # user: jovyan
     working_dir: /home/jovyan/work
-    # entrypoint: /home/jovyan/work/binder/entrypoint.sh
     command: jupyter lab --allow-root --NotebookApp.token='' --no-browser --ip=0.0.0.0
     ports:
       - 8888:8888
@@ -19,23 +17,21 @@ services:
       - ../:/home/jovyan/work:rw
       # - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /usr/share/vulkan/icd.d/:/etc/vulkan/icd.d
-      - ${PWD}/dev-tools:/mnt/dev-tools:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/cache/kit:/isaac-sim/kit/cache:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/cache/ov:/root/.cache/ov:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/cache/pip:/root/.cache/pip:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/cache/glcache:/root/.cache/nvidia/GLCache:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/cache/computecache:/root/.nv/ComputeCache:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/logs:/root/.nvidia-omniverse/logs:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/data:/root/.local/share/ov/data:rw
-      - ${PWD}/dev-tools/isaacsim-cache/5.1/documents:/root/Documents:rw
+      - ${PWD}/isaacsim-cache/cache/kit:/isaac-sim/kit/cache
+      # - ${PWD}/isaacsim-cache/cache/ov:/root/.cache/ov:rw
+      # - ${PWD}/isaacsim-cache/cache/pip:/root/.cache/pip:rw
+      # - ${PWD}/isaacsim-cache/cache/glcache:/root/.cache/nvidia/GLCache:rw
+      # - ${PWD}/isaacsim-cache/cache/computecache:/root/.nv/ComputeCache:rw
+      # - ${PWD}/isaacsim-cache/logs:/root/.nvidia-omniverse/logs:rw
+      # - ${PWD}/isaacsim-cache/data:/root/.local/share/ov/data:rw
+      # - ${PWD}/isaacsim-cache/documents:/root/Documents:rw
     environment:
       # - DISPLAY
       - NVIDIA_DRIVER_CAPABILITIES=all
       - ACCEPT_EULA="YES"
       - PRIVACY_CONSENT="YES"
       - OMNI_KIT_ACCEPT_EULA="YES"
-      - OMNI_KIT_ALLOW_ROOT="1"
-      - DEV_TOOLS_PATH="/mnt/dev-tools"
+      - OMNI_KIT_ALLOW_ROOT=1
     deploy:
       resources:
         reservations:

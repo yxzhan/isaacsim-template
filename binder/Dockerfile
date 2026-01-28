@@ -2,7 +2,7 @@
 FROM intel4coro/jupyter-ros2:jazzy-py3.12
 
 USER ${NB_USER}
-#============= Setup Isaac-sim python env =============#
+#============= Install IsaacSim =============#
 # To shorten the build time, isaacsim will be mounted when the container starts instead of being installed in the image.
 ENV ISAACSIM_VERSION="5.1"
 ENV ISAACSIM_PATH="/isaac-sim"
@@ -15,6 +15,21 @@ RUN cd /tmp && \
     sudo chown ${NB_USER}:users -R ${ISAACSIM_PATH} && \
     rm /tmp/isaac-sim-standalone-${ISAACSIM_VERSION}.0-linux-x86_64.zip
 
+# Install extra packages to isaacsim python env
+RUN $ISAACSIM_PYTHON_EXE -m pip install \
+        tqdm \
+        sidecar \
+        pandas \
+        jupyter \
+        ipywidgets \
+        matplotlib
+
+# Install YOLO
+RUN $ISAACSIM_PYTHON_EXE -m pip install --no-deps ultralytics
+
+# Install rqt_robot_steering
+RUN sudo apt update && \
+    sudo apt install -y ros-${ROS_DISTRO}-rqt-robot-steering
 
 # Install jupyter kernel of Isaac-sim python (3.11)
 COPY --chown=${NB_USER}:users binder/isaacsim_python_wrapper.sh /home/jovyan/.local/bin/isaacsim_python_wrapper.sh

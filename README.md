@@ -121,37 +121,16 @@ NVIDIA Container Toolkit: https://docs.nvidia.com/datacenter/cloud-native/contai
 
 ### Run and build docker image Locally (Under repo directory)
 
-- Download isaac-sim: https://docs.isaacsim.omniverse.nvidia.com/5.1.0/installation/download.html
-
-- Create directoriy `dev-tools` under the repo directory:
-
-  ```bash
-  mkdir -p dev-tools
-  ```
-
-- Extract the Isaac Sim to directory `dev-tools`, and rename it to `isaac-sim-5.1`.
-
-- Create another directory under `dev-tools`, rename it to `isaacsim-cache`. This directory is to store Isaac Sim's shader cache. The first time Isaac Sim runs, it needs to compile shaders, which can take a long time.
-
 - Build and run docker image:
 
   ```bash
-  export GID=$(id -g) && \
-  xhost +local:docker && \
-  docker compose -f ./binder/docker-compose.yml up --build
+  sudo docker compose -f ./binder/docker-compose.yml up --build
   ```
 
 - Open Web browser and go to http://localhost:8888/
 
-- To make the current directory writable inside the container:
-
-  ```bash
-  sudo chown $(id -u):$(id -g) -R ./dev-tools
-  sudo chmod -R g+w ./
-  ```
-
 - To stop and remove container:
 
   ```bash
-  docker compose -f ./binder/docker-compose.yml down
+  sudo docker compose -f ./binder/docker-compose.yml down
   ```

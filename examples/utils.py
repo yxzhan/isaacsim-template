@@ -4,13 +4,7 @@ Provides UI components, process management, and ROS2 utilities.
 """
 
 import os
-import html
-import time
-import threading
 import subprocess
-import importlib
-import textwrap
-from pathlib import Path
 
 import ipywidgets as widgets
 from IPython.display import display, HTML
@@ -26,7 +20,6 @@ try:
 except ImportError:
     print("Sidecar not available!")
 
-
 # =============================================================================
 # GLOBAL ENVIRONMENT VARIABLES
 # =============================================================================
@@ -34,217 +27,21 @@ except ImportError:
 os.environ["ROS_DOMAIN_ID"] = "0"
 os.environ["RMW_IMPLEMENTATION"] = "rmw_fastrtps_cpp"
 os.environ["ROS_AUTOMATIC_DISCOVERY_RANGE"] = "LOCALHOST"
-os.environ["DEV_TOOLS_PATH"] = "/mnt/dev-tools"
-os.environ.setdefault("ISAACSIM_VERSION", "5.1")
-os.environ["ISAACSIM_PATH"] = f"{os.environ['DEV_TOOLS_PATH']}/isaac-sim-{os.environ['ISAACSIM_VERSION']}"
-os.environ["ISAACSIM_PYTHON_EXE"] = f"{os.environ['ISAACSIM_PATH']}/python.sh"
-
-# TODO: Configure local asset server
-LOCAL_ASSET_PATH = ''
-# if os.environ["ISAACSIM_VERSION"] == "5.0":
-#     LOCAL_ASSET_PATH = ' --/persistent/isaac/asset_root/default="/mnt/dev-tools/isaacsim_assets/Assets/Isaac/5.0"'
 
 # Bash script to setup Isaac Sim Python environment
 ISAACSIM_ENV = """
 # unset virtualGL ENV (which breaks ROS2 bridge)
-# unset LD_PRELOAD
+unset LD_PRELOAD
 # Clear default ROS ENV
 unset PYTHONPATH
-export PYTHONPATH=/mnt/dev-tools/conda_py311/lib/python3.11/site-packages
-# source /mnt/dev-tools/ros_ws/jazzy_py311/install/setup.bash
-# export FASTRTPS_DEFAULT_PROFILES_FILE=/mnt/dev-tools/ros_ws/IsaacSim-ros_workspaces/jazzy_ws/fastdds.xml
 export LD_LIBRARY_PATH=$ISAACSIM_PATH/exts/isaacsim.ros2.bridge/$ROS_DISTRO/lib
 """
-
-# Bash script to extract Isaac Sim cache
-CACHE_EXTRACT_CMD = """
-${DEV_TOOLS_PATH}/isaacsim-cache/extract.sh
-"""
-
-# Bash script to archive Isaac Sim cache
-CACHE_ARCHIVE_CMD = """
-${DEV_TOOLS_PATH}/isaacsim-cache/archive.sh
-"""
-
-# =============================================================================
-# APPLICATION MANAGEMENT
-# =============================================================================
-
-def get_app_list():
-    """
-    Get the list of main applications with their commands and paths.
-    
-    Returns:
-        list: List of dictionaries containing app information
-    """
-    app_list = [
-        {
-            "name": "Main App",
-            "path": "isaac-sim.sh",
-            "command": textwrap.dedent("""
-                $ISAACSIM_PATH/isaac-sim.sh
-            """)
-        },
-        # {
-        #     "name": "Main App Streaming",
-        #     "path": "isaac-sim.streaming.sh",
-        #     "command": textwrap.dedent("""
-        #         $ISAACSIM_PATH/isaac-sim.streaming.sh
-        #     """)
-        # },
-        {
-            "name": "Streaming Client",
-            "path": "",
-            "command": textwrap.dedent("""
-                $DEV_TOOLS_PATH/streaming-client/isaacsim-webrtc-streaming-client --no-sandbox
-            """)
-        },
-        {
-            "name": "IAI Apartment",
-            "path": f"{os.getcwd()}/apartment.py"
-        },
-        {
-            "name": "Carter (Nav2)",
-            "path": f"{os.getcwd()}/carter_stereo.py",
-            "command": textwrap.dedent(f"""
-                $ISAACSIM_PYTHON_EXE {os.getcwd()}/carter_stereo.py
-                # source $ROS_PATH/setup.bash
-                # source $HOME/isaac_ws/install/setup.bash
-                # ros2 launch carter_navigation carter_navigation.launch.py
-            """)
-        },
-        {
-            "name": "Multiple Robot",
-            "path": f"{os.getcwd()}/carter_multiple_robot_navigation.py",
-            "command": textwrap.dedent(f"""
-                $ISAACSIM_PYTHON_EXE {os.getcwd()}/carter_multiple_robot_navigation.py &
-                # source $HOME/isaac_ws/install/setup.bash
-                # ros2 launch carter_navigation multiple_robot_carter_navigation_hospital.launch.py
-            """)
-        },
-        {
-            "name": "RL Policy",
-            "path": f"{os.getcwd()}/policy.py"
-        },
-        {
-            "name": "Panda (Moveit)",
-            "path": f"{os.getcwd()}/moveit.py",
-            "command": textwrap.dedent(f"""
-                $ISAACSIM_PYTHON_EXE {os.getcwd()}/moveit.py &
-                source $HOME/isaac_ws/install/setup.bash
-                ros2 launch isaac_moveit isaac_moveit.launch.py
-            """)
-        },
-        {
-            "name": "UR10 conveyor",
-            "path": f"{os.getcwd()}/demo_ur10_conveyor_main.py"
-        }
-    ]
-
-    # Add environment setup to each app
-    for app in app_list:
-        if 'command' not in app:
-            app['command'] = f"$ISAACSIM_PYTHON_EXE {app['path']}"
-        app['command'] = ISAACSIM_ENV + app['command'] + LOCAL_ASSET_PATH
-    
-    return app_list
-
-def get_tools_list():
-    """
-    Get the list of tools with their commands and display names.
-    
-    Returns:
-        list: List of dictionaries containing tool information
-    """
-    tools_list = [
-        {
-            "name": "MULTIVERSE",
-            "command": textwrap.dedent(f"""
-                cd $DEV_TOOLS_PATH/Multiverse
-                pip install -r ./Multiverse-Launch/requirements.txt
-                pip install -r ./Multiverse-Utilities/requirements.txt
-                pip install -r ./Multiverse-Launch/src/multiverse_connectors/multiverse_simulators_connector/src/mujoco_connector/requirements.txt
-                ./Multiverse-Launch/bin/multiverse_launch
-            """),
-            "description": "Multiverse testing"
-        },
-        {
-            "name": "Kitchen UE",
-            "command": "$DEV_TOOLS_PATH/DemoProject/DemoProject.sh",
-            "description": "Unreal Engine Kitchen Demo"
-        },
-        {
-            "name": "Apartment URDF",
-            "command": textwrap.dedent(f"""
-                source $DEV_TOOLS_PATH/ros_ws/apartment_ws/install/setup.bash
-                ros2 launch iai_apartment apartment_display.launch.py
-            """),
-            "description": "Display Apartment URDF Model"
-        },
-        {
-            "name": "Blender",
-            "command": "$DEV_TOOLS_PATH/blender-4.5.3-linux-x64/blender",
-            "description": "3D Modeling and Animation"
-        },
-        {
-            "name": "PyCharm",
-            "command": "$DEV_TOOLS_PATH/pycharm/bin/pycharm",
-            "description": "Python IDE"
-        },
-        {
-            "name": "Gazebo",
-            "command": "gz sim",
-            "description": "Gazebo Simulation"
-        },
-    ]
-    
-    return tools_list
-
-
-def get_all_examples_list():
-    """
-    Get all official standalone examples from Isaac Sim.
-    
-    Returns:
-        list: List of dictionaries containing example information
-    """
-    examples_dir = Path(f"{os.environ['ISAACSIM_PATH']}/standalone_examples")
-    examples = []
-    
-    for example_file in examples_dir.rglob("*.py"):
-        # Skip checkpoint files and __init__.py
-        if ".ipynb_checkpoints" not in example_file.parts and example_file.name != "__init__.py":
-            examples.append({
-                "name": example_file.stem,
-                "path": str(example_file),
-                "command": ISAACSIM_ENV + f"$ISAACSIM_PYTHON_EXE {LOCAL_ASSET_PATH} {str(example_file)}"
-            })
-    
-    return examples
-
 
 # =============================================================================
 # PROCESS MANAGEMENT
 # =============================================================================
 
-# Global variables to control subprocesses
-current_process = None
-
-# UI widgets
-run_in_bg = widgets.Checkbox(
-    value=False,
-    indent=False,
-    description="Run demos in separate terminals.",
-    disabled=False
-)
-
-output_area = widgets.Textarea(
-    rows=15,
-    layout={"width": "95%"}
-)
-
-
-def run_script(script, label="", background=None):
+def run_script(script, background=True):
     """
     Run a bash script in a subprocess.
     
@@ -252,11 +49,9 @@ def run_script(script, label="", background=None):
         script (str): Bash script to execute
         label (str): Label for the process (for logging)
     """
-    global current_process
 
-    _background = run_in_bg.value if background is None else background
     # Determine command based on run mode
-    if _background:
+    if background:
         cmd = ["gnome-terminal", "--", "bash", "-c", script]
     else:
         cmd = ["bash", "-c", script]
@@ -270,171 +65,8 @@ def run_script(script, label="", background=None):
         bufsize=1,
     )
     
-    # Clear and update output area
-    output_area.value = ""
-    for line in current_process.stdout:
-        output_area.value = line + output_area.value
-
     current_process.wait()
     return current_process
-
-
-# =============================================================================
-# UI COMPONENTS
-# =============================================================================
-
-def make_button(data, script_type="bash", button_style="primary", min_width='50px', show_source=False):
-    """
-    Create a button widget for launching applications.
-    
-    Args:
-        data (dict): Button data containing name and command
-        script_type (str): Type of script to run
-        button_style (str): Style of the button
-        min_width (str): Minimum width of the button
-        show_source (bool): Whether to show source code link
-    
-    Returns:
-        widgets.VBox or widgets.Button: Button widget
-    """
-    label = data['name']
-    script = data['command']
-    
-    button = widgets.Button(
-        description=label,
-        button_style=button_style,
-        tooltip=script,
-        layout=widgets.Layout(min_width=min_width)
-    )
-    
-    def on_click(b):
-        """Handle button click event."""
-        if script_type == "bash":
-            thread = threading.Thread(target=run_script, args=(script, label))
-            thread.start()
-    
-    button.on_click(on_click)
-    
-    # Add source code link if requested
-    if show_source:
-        file_path = os.path.abspath(os.path.join(os.environ["ISAACSIM_PATH"], data['path']))
-        
-        try:
-            jupyterhub_user = os.environ['JUPYTERHUB_USER']
-        except KeyError:
-            jupyterhub_user = None
-            
-        url_prefix = f"/user/{jupyterhub_user}" if jupyterhub_user is not None else ''
-        url_param = f'folder={os.path.dirname(file_path)}&payload=[["openFile","vscode-remote://{file_path}"]]'
-        url_param = html.escape(url_param)
-        
-        src_btn = widgets.HTML(
-            value=f'<a href="{url_prefix}/vscode/?{url_param}" title="{file_path}" '
-                  f'class="jupyter-button" style="width:100%;padding:0;" target="_blank">Source Code</a>',
-        )
-        
-        return widgets.VBox([button, src_btn])
-    else:
-        return button
-    
-
-def create_button_grid(items, buttons_per_row=3, show_source=False, button_style="primary"):
-    """
-    Create a grid of buttons from a list of items.
-    
-    Args:
-        items (list): List of dictionaries containing button data
-        buttons_per_row (int): Number of buttons per row
-        show_source (bool): Whether to show source code links
-        button_style (str): Style for the buttons
-        
-    Returns:
-        widgets.VBox: Vertical box containing rows of buttons
-    """
-    # Create buttons for all items
-    buttons = [make_button(item, button_style=button_style, show_source=show_source) for item in items]
-    
-    # Group buttons into rows
-    rows = []
-    for i in range(0, len(buttons), buttons_per_row):
-        row = widgets.HBox(buttons[i:i+buttons_per_row])
-        rows.append(row)
-    
-    return widgets.VBox(rows)
-
-
-def display_ui():
-    """Display the main application launcher UI."""
-    app_list = get_app_list()
-    examples_list = get_all_examples_list()
-    tools_list = get_tools_list()
-    
-    # Create button grids
-    main_apps_grid = create_button_grid(app_list[:2], buttons_per_row=2)
-    python_examples_grid = create_button_grid(app_list[2:], buttons_per_row=3, show_source=True)
-    tools_grid = create_button_grid(tools_list, buttons_per_row=3)
-    examples_grid = create_button_grid(
-        sorted(examples_list, key=lambda x: x['name']), 
-        buttons_per_row=3, 
-        show_source=True
-    )
-    # Control UI with stop and cache buttons
-    control_ui = widgets.HBox([
-        widgets.HTML(
-            value='<button data-commandlinker-command="notebook:interrupt-kernel" '
-                  'style="min-width:120px;" class="jupyter-button mod-danger">Stop</button>'
-        ),
-        make_button({"command": CACHE_EXTRACT_CMD, "name": "Extract Cache"}, button_style="info"),
-        make_button({"command": CACHE_ARCHIVE_CMD, "name": "Archive Cache"}, button_style="info")
-    ])
-
-    # Process output area
-    output_label = widgets.Label(value="Outputs:")
-    
-    # Initial UI with just output area
-    ui = widgets.VBox([
-        output_label,
-        output_area
-    ])
-    
-    display(ui)
-
-    # Extract Isaac Sim cache on startup
-    run_script(CACHE_EXTRACT_CMD, "Extract Cache")
-
-    # Create example buttons grid (3 columns)
-    example_btns = [make_button(example, show_source=True) for example in sorted(examples_list, key=lambda x: x['name'])]
-    
-    n_cols = 3
-    rows = []
-    for i in range(0, len(example_btns), n_cols):
-        row = widgets.HBox(example_btns[i:i+n_cols])
-        rows.append(row)
-    
-    examples_list_ui = widgets.VBox(rows)
-
-    # Signal that launcher is ready
-    run_script("echo 'Launcher Ready!'", "Nothing")
-
-    # Update UI with all components
-    ui.children = [
-        run_in_bg,
-        widgets.Label(value=f"Isaac Sim {os.environ['ISAACSIM_VERSION']}:"),
-        main_apps_grid,
-        widgets.Label(value="Isaac Sim Python Examples:"),
-        python_examples_grid,
-        widgets.Label(value="Other Tools:"),
-        tools_grid,
-        output_label,
-        control_ui,
-        output_area,
-        widgets.Label(value="Full Isaac Sim Examples:"),
-        examples_grid
-    ]
-
-    run_in_bg.value = True
-
-
 
 # =============================================================================
 # DESKTOP DISPLAY
@@ -489,115 +121,3 @@ def display_desktop(anchor="split-right"):
             </div>
         """))
 
-
-# =============================================================================
-# ROS2 UTILITIES
-# =============================================================================
-
-# def publish_one_ros_message(topic, message, msg_type, qos=100):
-#     """
-#     Publish a single ROS2 message to a topic.
-    
-#     Args:
-#         topic (str): Topic name to publish to
-#         message: ROS2 message object
-#         msg_type: ROS2 message type
-#     """
-#     if not rclpy.ok():
-#         rclpy.init(args=None)
-        
-#     node = rclpy.create_node("simple_publisher")
-#     publisher = node.create_publisher(msg_type, topic, qos)
-#     publisher.publish(message)
-#     node.destroy_node()
-
-
-def get_topic_type(topic_name):
-    """
-    Get the message type of a ROS2 topic.
-    
-    Args:
-        topic_name (str): Name of the topic
-        
-    Returns:
-        str or None: Message type string or None if topic not found
-    """
-    node = rclpy.create_node('type_finder')
-    
-    for name, types in node.get_topic_names_and_types():
-        if name == topic_name:
-            node.destroy_node()
-            return types[0]
-            
-    node.destroy_node()
-    return None
-
-
-def get_message_class(type_str):
-    """
-    Get the Python class for a ROS2 message type.
-    
-    Args:
-        type_str (str): ROS2 message type string (e.g., 'std_msgs/msg/String')
-        
-    Returns:
-        class: Python class for the message type
-    """
-    pkg, _, msg_name = type_str.partition('/msg/')
-    return getattr(importlib.import_module(f"{pkg}.msg"), msg_name)
-
-
-
-def get_ros_messages(topic_name, msg_type=None, num_messages=1, timeout=5.0):
-    """
-    Fetch multiple messages from a ROS2 topic.
-
-    Args:
-        topic_name (str): Name of the topic to subscribe to
-        msg_type (rclpy Message class, optional): ROS message type. If None, auto-detect.
-        num_messages (int): Number of messages to collect
-        timeout (float): Maximum time to wait in seconds
-
-    Returns:
-        list: List of received messages (may be fewer than num_messages if timeout occurs)
-    """
-
-    if not rclpy.ok():
-        rclpy.init(args=None)
-
-    node = rclpy.create_node('multi_shot_subscriber')
-
-    # Auto-detect message type if not provided
-    if msg_type is None:
-        type_str = get_topic_type(topic_name)
-        if not type_str:
-            node.get_logger().error(f"Topic {topic_name} not found.")
-            node.destroy_node()
-            rclpy.shutdown()
-            return []
-        msg_type = get_message_class(type_str)
-        node.get_logger().info(f"Detected message type: {type_str}")
-
-    # Container to store messages
-    msgs = []
-
-    def callback(msg):
-        """Callback to store messages."""
-        msgs.append(msg)
-        # Stop spinning when reached required number
-        if len(msgs) >= num_messages:
-            rclpy.shutdown()
-
-    # Create subscription
-    node.create_subscription(msg_type, topic_name, callback, 10)
-
-    # Wait until messages received or timeout
-    start_time = time.time()
-    while rclpy.ok() and len(msgs) < num_messages:
-        rclpy.spin_once(node, timeout_sec=0.1)
-        if time.time() - start_time > timeout:
-            node.get_logger().warn(f"Timeout after {timeout}s, collected {len(msgs)} messages.")
-            break
-
-    node.destroy_node()
-    return msgs
