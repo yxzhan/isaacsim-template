@@ -26,28 +26,9 @@ https://github.com/user-attachments/assets/1b3cd8d2-048c-43c3-9e97-31fb69fb479b
 
     ![](./docs/tutorial.png)
 
-1. Alternatively, you can open the code with `VSCode` or `PyCharm` and manually configuring the Python interpreter to `/mnt/dev-tools/isaac-sim-5.1/python.sh`.
+1. Alternatively, you can open the code with `VSCode` and configuring the Python interpreter to `/isaac-sim/python.sh`.
 
     ![vscode](./docs/vscode.gif)
-
-1. Navigate to the parent directory in the file browser, and you will see a folder named `dev-tools`(a symlink to the shared storage space `/mnt/dev-tools`), which contains the Isaac Sim main program, precompiled shader, asset caches, and other large files.
-
-    ![](./docs/dev-tools.gif)
-
-1. You can store files under the `dev-tools` directory (please create a new subdirectory). This allows others to directly access your files (e.g., USD assets, ROS workspaces) without building new docker images. Files outside this directory will be deleted when the current container is terminated. To upload local files, simply drag and drop them into the file browser. To upload an entire directory, you need to compress it into an archive file first.
-
-1. To directly open your uploaded files in a new lab instance, change the last part of the launcher URL to point to your file address. For example, if I uploaded a notebook `dev-tools/my_uploaded_files/my_notebook.ipynb`.
-    
-    Open in JupyterLab:
-
-    ```
-    https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab/tree/dev-tools/my_uploaded_files/my_notebook.ipynb
-    ```
-
-    To open it directly in the VS Code interface, more complex URL parameters are required:
-    ```
-    https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=vscode?folder=/mnt/dev-tools/my_uploaded_files/%26payload=[["openFile","vscode-remote:///mnt/dev-tools/my_uploaded_files/my_notebook.ipynb"]]
-    ```
 
 1. If you are running programs that utilize GPU resources, such as Isaac Sim or Unreal Engine, please remember to manually terminate the processes afterward, as GPU resources are highly limited. Best to manually shut down the entire lab instance in menu `File > Shutdown`.
 
@@ -92,7 +73,7 @@ The existing VRB labs can also run directly on the GPU server by simply changing
 
     The first time it is launched, it will take some time to build the Docker image.
 
-## Repository Structure
+<!-- ## Repository Structure
 
 ```
 .
@@ -109,7 +90,7 @@ The runtime environment can be divided into three layers:
 - The middle shared directory layer allows restricted user access.
 - The bottom GPU toolkit layer can only be managed by the background cloud system.
 
-![](./docs/runtime-arch.png)
+![](./docs/runtime-arch.png) -->
 
 ## Local Development
 
