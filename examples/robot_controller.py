@@ -48,7 +48,7 @@ def joint_controller(urdf_path, prefix=""):
                 max=upper,
                 step=0.01,
                 description=name,
-                continuous_update=True,
+                continuous_update=False,
                 style=dict(
                     description_width='10rem'
                 ),
