@@ -4,6 +4,7 @@ from urdf_parser_py.urdf import URDF
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
+from geometry_msgs.msg import Twist
 import ipywidgets as widgets
 from IPython.display import display, Markdown, clear_output
 import time
@@ -58,7 +59,74 @@ def joint_controller(urdf_path, prefix=""):
             sliders[name] = s
 
     return widgets.VBox([sliders[i] for i in sliders])
-            
+
+def robot_steering(prefix=""):
+    cmd_vel = CmdVelPublisher(prefix=prefix)
+    
+    # robot_steering, similar to "rqt_robot_steering"
+    linear_x = widgets.FloatSlider(
+        value=0,
+        min=-0.5,
+        max=0.5,
+        step=0.05,
+        description='Moving',
+        orientation='vertical',
+        continuous_update=True,
+        readout=True,
+        readout_format='.1f',
+    )
+    
+    def on_linear_x_change(v):
+        cmd_vel.msg.linear.x = float(v)
+        cmd_vel.publish()
+    
+    linear_x.observe(lambda v: on_linear_x_change(v['new']), names='value')
+    
+    # slider for rotation velocity
+    angular_z = widgets.FloatSlider(
+        value=0,
+        min=-3,
+        max=3,
+        step=0.1,
+        description='Rotation',
+        continuous_update=True,
+        readout=True,
+        readout_format='.1f',
+    )
+    
+    def on_angular_z_change(v):
+        cmd_vel.msg.angular.z = -float(v)
+        cmd_vel.publish()
+    
+    angular_z.observe(lambda v: on_angular_z_change(v['new']), names='value')
+
+
+    def on_angular_z_change(v):
+        cmd_vel.msg.angular.z = -float(v)
+        cmd_vel.publish()
+
+    btn_stop = widgets.Button(
+        description='STOP'
+    )
+    
+    def on_stop(_):
+        linear_x.value = 0.0
+        angular_z.value = 0.0
+    
+    btn_stop.on_click(on_stop)
+
+    return widgets.HBox([linear_x, angular_z, btn_stop])
+    
+
+
+class CmdVelPublisher(Node):
+    def __init__(self, prefix=""):
+        super().__init__(f'{prefix}_robot_steering')
+        self.msg = Twist()
+        self.pub = self.create_publisher(Twist, f'{prefix}/cmd_vel', 10)
+
+    def publish(self):
+        self.pub.publish(self.msg)
 
 class NotebookJointUI(Node):
     def __init__(self, prefix=""):
