@@ -9,3 +9,4 @@ PySide2
 
 # Computer vision
 opencv-python>=4.8
+urdf_parser_py
