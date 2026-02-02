@@ -15,14 +15,13 @@ logging.getLogger().setLevel(logging.ERROR)
 if not rclpy.ok():
     rclpy.init()
 
-def joint_controller(urdf_path, topic_prefix=""):
+def joint_controller(urdf_path, prefix=""):
     with open(urdf_path, 'r') as f:
         urdf_content = f.read()
     clean_urdf = re.sub(r'<transmission.*?</transmission>', '', urdf_content, flags=re.DOTALL)
     robot = URDF.from_xml_string(clean_urdf)
     
-    node = NotebookJointUI(prefix=topic_prefix)
-    # clear_output(wait=True)
+    node = NotebookJointUI(prefix=prefix)
     
     print("Waiting for Robot Joint state...")
     while node.latest_state is None:
@@ -63,20 +62,20 @@ def joint_controller(urdf_path, topic_prefix=""):
 
 class NotebookJointUI(Node):
     def __init__(self, prefix=""):
-        super().__init__('notebook_joint_ui')
+        super().__init__(f'{prefix}_notebook_joint_ui')
 
         self.latest_state = None
 
         self.sub = self.create_subscription(
             JointState,
-            f'{prefix}/joint_states',
+            f'/{prefix}/joint_states',
             self._joint_state_cb,
             10
         )
 
         self.pub = self.create_publisher(
             JointState,
-            f'{prefix}/joint_position_cmd',
+            f'/{prefix}/joint_position_cmd',
             10
         )
 
