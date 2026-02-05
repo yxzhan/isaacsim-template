@@ -16,7 +16,7 @@ logging.getLogger().setLevel(logging.ERROR)
 if not rclpy.ok():
     rclpy.init()
 
-def joint_controller(urdf_path, prefix=""):
+def joint_controller(urdf_path, prefix=None):
     with open(urdf_path, 'r') as f:
         urdf_content = f.read()
     clean_urdf = re.sub(r'<transmission.*?</transmission>', '', urdf_content, flags=re.DOTALL)
@@ -120,30 +120,43 @@ def robot_steering(prefix=""):
 
 
 class CmdVelPublisher(Node):
-    def __init__(self, prefix=""):
-        super().__init__(f'{prefix}_robot_steering')
+    def __init__(self, prefix=None):
+        if prefix is not None:
+            node_name = f"{prefix}_"
+            topic_prefix = f"/{prefix}"
+        else:
+            node_name = ''
+            topic_prefix = ''
+
+        super().__init__(f'{prefix}robot_steering')
         self.msg = Twist()
-        self.pub = self.create_publisher(Twist, f'{prefix}/cmd_vel', 10)
+        self.pub = self.create_publisher(Twist, f'{topic_prefix}/cmd_vel', 10)
 
     def publish(self):
         self.pub.publish(self.msg)
 
 class NotebookJointUI(Node):
-    def __init__(self, prefix=""):
-        super().__init__(f'{prefix}_notebook_joint_ui')
+    def __init__(self, prefix=None):
+        if prefix is not None:
+            node_name = f"{prefix}_"
+            topic_prefix = f"/{prefix}"
+        else:
+            node_name = ''
+            topic_prefix = ''
+        
+        super().__init__(f'{prefix}notebook_joint_ui')
 
         self.latest_state = None
-
         self.sub = self.create_subscription(
             JointState,
-            f'/{prefix}/joint_states',
+            f'{topic_prefix}/joint_states',
             self._joint_state_cb,
             10
         )
 
         self.pub = self.create_publisher(
             JointState,
-            f'/{prefix}/joint_position_cmd',
+            f'{topic_prefix}/joint_command',
             10
         )
 

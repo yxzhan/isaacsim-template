@@ -28,15 +28,6 @@ os.environ["ROS_DOMAIN_ID"] = "0"
 os.environ["RMW_IMPLEMENTATION"] = "rmw_fastrtps_cpp"
 os.environ["ROS_AUTOMATIC_DISCOVERY_RANGE"] = "LOCALHOST"
 
-# Bash script to setup Isaac Sim Python environment
-ISAACSIM_ENV = """
-# unset virtualGL ENV (which breaks ROS2 bridge)
-unset LD_PRELOAD
-# Clear default ROS ENV
-unset PYTHONPATH
-export LD_LIBRARY_PATH=$ISAACSIM_PATH/exts/isaacsim.ros2.bridge/$ROS_DISTRO/lib
-"""
-
 # =============================================================================
 # PROCESS MANAGEMENT
 # =============================================================================
