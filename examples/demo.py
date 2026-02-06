@@ -7,15 +7,13 @@ from pathlib import Path
 
 # Curent script directory
 BASE_DIR = Path(__file__).resolve().parent
-print(BASE_DIR)
 
 # Check if cache exist, if not copy the precompiled cache
 target_dir = "/isaac-sim/kit/cache"
 source_dir = "/mnt/isaacsim-cache/cache"
-dest_dir = "/isaac-sim/kit/cache"
 
 if not os.path.isdir(target_dir):
-    shutil.copytree(source_dir, dest_dir)
+    shutil.copytree(source_dir, target_dir)
 
 # ## Start SimulationApp
 from isaacsim import SimulationApp
@@ -284,6 +282,7 @@ camera_node = CameraPublisher()
 # Once the simulation loop is running, you can drag the  sliders to control the robot's forward/backward movement and steering.
 
 # In[ ]:
+print("Apartment Demo ready!")
 
 frame = 0
 while True:
