@@ -183,7 +183,7 @@ class IsaacJointState(Node):
             node_name = ''
             topic_prefix = ''
 
-        super().__init__(f"{prefix}isaac_joint_state")
+        super().__init__(f"{node_name}isaac_joint_state")
 
         self.robot_art = robot_art
 
