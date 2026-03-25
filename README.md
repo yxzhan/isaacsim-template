@@ -115,7 +115,7 @@ docker run --gpus all -it \
   --env OMNI_KIT_ALLOW_ROOT=1 \
   -v /usr/share/vulkan/icd.d/:/etc/vulkan/icd.d \
   -p 8888:8888 \
-  intel4coro/yxzhan-2disaacsim-2dtemplate-b9ff8d:568c5af7df4b2c7c138131aa5bac47f767e850b1 \
+  intel4coro/yxzhan-2disaacsim-2dtemplate-b9ff8d:bdb959b02833edc0c24b8649c2990e2148cec286 \
   jupyter lab --allow-root --NotebookApp.token='' --no-browser --ip=0.0.0.0
 ```
 
