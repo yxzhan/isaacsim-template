@@ -100,15 +100,34 @@ Docker: https://docs.docker.com/engine/install/
 
 NVIDIA Container Toolkit: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
 
+### Run without building docker image
+
+> Note: On the first launch, Isaac Sim will compile shaders based on your current GPU. This process may take over 10 minutes and will heavily utilize your system's CPU, and memory resources. This is expected behavior — please be patient and do not interrupt the process. Subsequent launches will be significantly faster as the compiled shaders are cached.
+
+```bash
+docker run --gpus all -it \
+  --cpus=10 \
+  --memory=32g \
+  --env NVIDIA_DRIVER_CAPABILITIES=all \
+  --env ACCEPT_EULA="YES" \
+  --env PRIVACY_CONSENT="YES" \
+  --env OMNI_KIT_ACCEPT_EULA="YES" \
+  --env OMNI_KIT_ALLOW_ROOT=1 \
+  -v /usr/share/vulkan/icd.d/:/etc/vulkan/icd.d \
+  -p 8888:8888 \
+  intel4coro/yxzhan-2disaacsim-2dtemplate-b9ff8d:066be83abd82475327c3b8def0de976706ec5c9c \
+  jupyter lab --allow-root --NotebookApp.token='' --no-browser --ip=0.0.0.0
+```
+
+- Open Web browser and open: http://127.0.0.1:8888/lab/tree/examples/launcher.ipynb
+
 ### Run and build docker image Locally (Under repo directory)
 
-- Build and run docker image:
+- Build docker image:
 
   ```bash
   sudo docker compose -f ./binder/docker-compose.yml up --build
   ```
-
-- Open Web browser and go to http://localhost:8888/
 
 - To stop and remove container:
 
