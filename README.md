@@ -160,6 +160,7 @@ sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
     sudo docker run --rm --gpus all -it \
     --cpus=8 \
     --memory=16g \
+    --user root \
     --env NVIDIA_DRIVER_CAPABILITIES=all \
     --env ACCEPT_EULA="YES" \
     --env PRIVACY_CONSENT="YES" \
@@ -178,6 +179,7 @@ sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
     - `--gpus all`: Enable all available GPUs for the container.
     - `--cpus=8`: Limit the container to use up to 8 CPU cores.
     - `--memory=16g`: Limit the container's memory usage to 16GB.
+    - `--user root`: Run as root in docker container.
     - `--env NVIDIA_DRIVER_CAPABILITIES=all`: Set NVIDIA driver capabilities to all.
     - `--env ACCEPT_EULA="YES"`: Accept the End User License Agreement.
     - `--env PRIVACY_CONSENT="YES"`: Consent to privacy terms.
