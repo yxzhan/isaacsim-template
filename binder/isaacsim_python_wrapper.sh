@@ -8,6 +8,6 @@ unset LD_PRELOAD
 unset PYTHONPATH
 
 # Isaac Sim ROS2 Bridge
-export LD_LIBRARY_PATH=$ISAACSIM_PATH/exts/isaacsim.ros2.bridge/$ROS_DISTRO/lib
+export LD_LIBRARY_PATH=/usr/local/nvidia/lib64:$ISAACSIM_PATH/exts/isaacsim.ros2.bridge/$ROS_DISTRO/lib
 
 $ISAACSIM_PYTHON_EXE "$@"
