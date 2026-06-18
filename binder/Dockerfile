@@ -24,13 +24,6 @@ RUN $ISAACSIM_PYTHON_EXE -m pip install \
         ipywidgets \
         matplotlib
 
-# Install YOLO
-RUN $ISAACSIM_PYTHON_EXE -m pip install --no-deps ultralytics
-
-# Install rqt_robot_steering
-RUN sudo apt update && \
-    sudo apt install -y ros-${ROS_DISTRO}-rqt-robot-steering
-
 # Install jupyter kernel of Isaac-sim python (3.11)
 COPY --chown=${NB_USER}:users binder/isaacsim_python_wrapper.sh /home/jovyan/.local/bin/isaacsim_python_wrapper.sh
 COPY --chown=${NB_USER}:users binder/kernel.json /opt/conda/share/jupyter/kernels/isaac-sim//kernel.json
@@ -40,9 +33,18 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 #===========================================================#
 
 # Install vscode extensions
-RUN code-server --install-extension ms-python.python
-RUN code-server --install-extension ms-toolsai.jupyter
-RUN code-server --install-extension continue.continue
+RUN mamba update -y conda-forge::code-server
+RUN code-server --install-extension mhutchie.git-graph
+RUN code-server --install-extension lichenxi.sysmonitor
+RUN curl -LO https://github.com/yxzhan/vscode_remote_desktop/releases/download/v0.1.0/vscode-remote-desktop-0.1.0.vsix && \
+    code-server --install-extension vscode-remote-desktop-0.1.0.vsix && \
+    rm vscode-remote-desktop-0.1.0.vsix
+
+# Install Claude code
+RUN curl -fsSL https://claude.ai/install.sh | bash
+
+# Install YOLO without dependencies
+RUN pip install --no-deps ultralytics
 
 # Install python packages
 USER ${NB_USER}

@@ -4,7 +4,8 @@ from urdf_parser_py.urdf import URDF
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, Point
+from std_msgs.msg import Float64
 import ipywidgets as widgets
 from IPython.display import display, Markdown, clear_output
 import time
@@ -85,8 +86,8 @@ def robot_steering(prefix=""):
     # slider for rotation velocity
     angular_z = widgets.FloatSlider(
         value=0,
-        min=-3,
-        max=3,
+        min=-2,
+        max=2,
         step=0.1,
         description='Rotation',
         continuous_update=True,
@@ -116,7 +117,51 @@ def robot_steering(prefix=""):
     btn_stop.on_click(on_stop)
 
     return widgets.HBox([linear_x, angular_z, btn_stop])
-    
+
+
+def ee_controller(prefix="stretch"):
+    """Cartesian end-effector control: publishes a base-relative target that the
+    simulation solves with IK (calls ``move_ee`` on the sim side)."""
+    node = EECommandPublisher(prefix=prefix)
+
+    # The Stretch arm is a planar 2-DOF arm: reach (along base -Y) + height
+    # (lift). grasp_center x stays ~ -0.02, so we keep it fixed.
+    EE_X = -0.02
+    GRIPPER_OPEN, GRIPPER_CLOSE = 0.55, 0.0
+
+    reach = widgets.FloatSlider(
+        value=-0.55, min=-0.88, max=-0.45, step=0.01,
+        description='Reach (y)', continuous_update=False,
+        style=dict(description_width='8rem'),
+        layout=widgets.Layout(width='100%'),
+    )
+    height = widgets.FloatSlider(
+        value=0.60, min=0.30, max=1.10, step=0.01,
+        description='Height (z)', continuous_update=False,
+        style=dict(description_width='8rem'),
+        layout=widgets.Layout(width='100%'),
+    )
+
+    def send_ee(_=None):
+        node.publish_ee(EE_X, reach.value, height.value)
+
+    reach.observe(lambda c: send_ee(), names='value')
+    height.observe(lambda c: send_ee(), names='value')
+
+    btn_move = widgets.Button(description='Move EE', button_style='primary')
+    btn_move.on_click(send_ee)
+    btn_open = widgets.Button(description='Open Gripper')
+    btn_open.on_click(lambda _: node.publish_gripper(GRIPPER_OPEN))
+    btn_close = widgets.Button(description='Close Gripper')
+    btn_close.on_click(lambda _: node.publish_gripper(GRIPPER_CLOSE))
+
+    return widgets.VBox([
+        reach,
+        height,
+        widgets.HBox([btn_move, btn_open, btn_close]),
+    ])
+
+
 
 
 class CmdVelPublisher(Node):
@@ -168,3 +213,22 @@ class NotebookJointUI(Node):
         msg.name = [name]
         msg.position = [float(pos)]
         self.pub.publish(msg)
+
+
+class EECommandPublisher(Node):
+    def __init__(self, prefix=None):
+        topic_prefix = f"/{prefix}" if prefix else ""
+        super().__init__(f'{prefix}ee_command_ui')
+
+        self.pub_ee = self.create_publisher(Point, f'{topic_prefix}/ee_command', 10)
+        self.pub_gripper = self.create_publisher(Float64, f'{topic_prefix}/gripper_command', 10)
+
+    def publish_ee(self, x, y, z):
+        msg = Point()
+        msg.x, msg.y, msg.z = float(x), float(y), float(z)
+        self.pub_ee.publish(msg)
+
+    def publish_gripper(self, value):
+        msg = Float64()
+        msg.data = float(value)
+        self.pub_gripper.publish(msg)
