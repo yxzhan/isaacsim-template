@@ -1,0 +1,27 @@
+# Lula robot description for the Stretch manipulator chain.
+# Used by the IK pick-and-place example in examples/apartment.ipynb.
+#
+# The cspace lists the generalized coordinates Lula is allowed to move when
+# solving IK. For Stretch this is the lift, the four telescoping arm segments
+# and the wrist yaw. The end-effector frame used by the example is
+# "link_grasp_center".
+api_version: 1.0
+
+cspace:
+    - joint_lift
+    - joint_arm_l0
+    - joint_arm_l1
+    - joint_arm_l2
+    - joint_arm_l3
+    - joint_wrist_yaw
+
+# A reasonable "ready to grasp" seed (lift raised, arm retracted, wrist forward).
+default_q: [0.6, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+acceleration_limits: [10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
+jerk_limits: [10000.0, 10000.0, 10000.0, 10000.0, 10000.0, 10000.0]
+
+cspace_to_urdf_rules: []
+
+# IK only needs kinematics, so no collision spheres are defined.
+collision_spheres: []
