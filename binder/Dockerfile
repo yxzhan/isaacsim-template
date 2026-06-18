@@ -43,9 +43,6 @@ RUN curl -LO https://github.com/yxzhan/vscode_remote_desktop/releases/download/v
 # Install Claude code
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
-# Install YOLO without dependencies
-RUN pip install --no-deps ultralytics
-
 # Install python packages
 USER ${NB_USER}
 COPY --chown=${NB_USER}:users binder/requirements.txt /tmp/requirements.txt

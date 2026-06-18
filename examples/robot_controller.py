@@ -1,9 +1,10 @@
 import os
 import re
+import numpy as np
 from urdf_parser_py.urdf import URDF
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import JointState
+from sensor_msgs.msg import JointState, Image
 from geometry_msgs.msg import Twist, Point
 from std_msgs.msg import Float64
 import ipywidgets as widgets
@@ -30,10 +31,14 @@ def joint_controller(urdf_path, prefix=None):
         rclpy.spin_once(node, timeout_sec=0.1)
     
     sliders = {}
+    neutral = {}
     joint_msg = node.latest_state
-    
+    suppress = {"on": False}   # mute per-slider publishing during a bulk reset
+
     def make_cb(joint_name):
         def cb(change):
+            if suppress["on"]:
+                return
             node.publish_joint(joint_name, change['new'])
         return cb
 
@@ -43,7 +48,8 @@ def joint_controller(urdf_path, prefix=None):
             pos = joint_msg.position[joint_msg.name.index(name)]
             lower = joint.limit.lower
             upper = joint.limit.upper
-        
+            neutral[name] = float(np.clip(0.0, lower, upper))  # zero pose, clamped
+
             s = widgets.FloatSlider(
                 value=pos,
                 min=lower,
@@ -59,7 +65,21 @@ def joint_controller(urdf_path, prefix=None):
             s.observe(make_cb(name), names='value')
             sliders[name] = s
 
-    return widgets.VBox([sliders[i] for i in sliders])
+    btn_neutral = widgets.Button(description='Reset to neutral', button_style='warning',
+                                 layout=widgets.Layout(width='16rem'))
+
+    def on_neutral(_):
+        # Sync the UI without firing one message per slider...
+        suppress["on"] = True
+        for name, s in sliders.items():
+            s.value = neutral[name]
+        suppress["on"] = False
+        # ...then send every joint in a single JointState message.
+        node.publish_joints(list(neutral.keys()), list(neutral.values()))
+
+    btn_neutral.on_click(on_neutral)
+
+    return widgets.VBox([btn_neutral] + [sliders[i] for i in sliders])
 
 def robot_steering(prefix=""):
     cmd_vel = CmdVelPublisher(prefix=prefix)
@@ -162,6 +182,74 @@ def ee_controller(prefix="stretch"):
     ])
 
 
+def perception_controller(prefix="stretch", weights=None, device="cpu"):
+    """A button that grabs the latest camera frames from ROS and runs YOLO
+    segmentation on them locally, then shows the annotated images.
+
+    Runs on CPU by default: the GPU is already held by Isaac Sim, and opening a
+    second CUDA context on it (especially with a mismatched CUDA build) can hard
+    crash the kernel. YOLO11n is small, so CPU inference is fine on demand."""
+    if weights is None:
+        weights = os.path.join(os.path.dirname(__file__), "yolo11n-seg.pt")
+
+    node = CameraSubscriber(prefix=prefix)
+    out = widgets.Output()
+    state = {}  # caches the (slow to load) YOLO model after the first click
+    btn = widgets.Button(description='Run Segmentation', button_style='success',
+                         layout=widgets.Layout(width='16rem'))
+
+    def on_click(_):
+        import matplotlib.pyplot as plt
+        with out:
+            clear_output(wait=True)
+            try:
+                if "model" not in state:
+                    print("Loading YOLO model...")
+                    from ultralytics import YOLO
+                    state["model"] = YOLO(weights)
+                model = state["model"]
+
+                # Grab fresh frames; the sim may not be publishing yet, so
+                # retry a few times, waiting 3s between attempts.
+                frames = []
+                for attempt in range(3):
+                    node.clear()
+                    t0 = time.time()
+                    while not node.ready() and time.time() - t0 < 5.0:
+                        rclpy.spin_once(node, timeout_sec=0.1)
+                    frames = node.images()
+                    if frames:
+                        break
+                    print("Camera images not broadcast yet, waiting 3s...")
+                    time.sleep(3.0)
+                clear_output(wait=True)
+                if not frames:
+                    print("No camera images received. Is the simulation loop running?")
+                    return
+
+                titles = [t for t, _ in frames]
+                # ultralytics expects BGR; plot() returns BGR -> flip both ways.
+                results = model.predict([img[:, :, ::-1] for _, img in frames],
+                                        save=False, verbose=False, device=device)
+            except Exception as exc:
+                clear_output(wait=True)
+                print(f"YOLO segmentation failed: {exc}")
+                return
+            n = len(results)
+            fig, axes = plt.subplots(n, 1, figsize=(6, 3.5 * n))
+            axes = np.atleast_1d(axes)
+            for ax, title, res in zip(axes, titles, results):
+                ax.imshow(res.plot()[:, :, ::-1])
+                ax.set_title(title)
+                ax.axis("off")
+            plt.tight_layout()
+            plt.show()
+
+    btn.on_click(on_click)
+    on_click(None)   # run once on initialization
+    return widgets.VBox([btn, out])
+
+
 
 
 class CmdVelPublisher(Node):
@@ -214,6 +302,12 @@ class NotebookJointUI(Node):
         msg.position = [float(pos)]
         self.pub.publish(msg)
 
+    def publish_joints(self, names, positions):
+        msg = JointState()
+        msg.name = list(names)
+        msg.position = [float(p) for p in positions]
+        self.pub.publish(msg)
+
 
 class EECommandPublisher(Node):
     def __init__(self, prefix=None):
@@ -232,3 +326,36 @@ class EECommandPublisher(Node):
         msg = Float64()
         msg.data = float(value)
         self.pub_gripper.publish(msg)
+
+
+def _image_msg_to_np(msg):
+    img = np.frombuffer(bytes(msg.data), dtype=np.uint8).reshape(msg.height, msg.width, -1)
+    if msg.encoding == "bgr8":
+        img = img[:, :, ::-1]
+    return np.ascontiguousarray(img[:, :, :3])
+
+
+class CameraSubscriber(Node):
+    TOPICS = [("Head camera", "/head_camera/image_raw"),
+              ("Gripper camera", "/gripper_camera/image_raw")]
+
+    def __init__(self, prefix=None):
+        super().__init__(f'{prefix or ""}perception_ui')
+        self._frames = {}
+        for _, topic in self.TOPICS:
+            self.create_subscription(Image, topic, self._make_cb(topic), 10)
+
+    def _make_cb(self, topic):
+        def cb(msg):
+            self._frames[topic] = _image_msg_to_np(msg)
+        return cb
+
+    def clear(self):
+        self._frames = {}
+
+    def ready(self):
+        return all(topic in self._frames for _, topic in self.TOPICS)
+
+    def images(self):
+        return [(title, self._frames[topic])
+                for title, topic in self.TOPICS if topic in self._frames]
