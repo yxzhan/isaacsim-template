@@ -10,6 +10,10 @@ materials/
 # C extensions
 *.so
 
+nav2_ws/build/
+nav2_ws/log/
+nav2_ws/install/
+
 # Distribution / packaging
 .Python
 build/

@@ -43,6 +43,21 @@ RUN curl -LO https://github.com/yxzhan/vscode_remote_desktop/releases/download/v
 # Install Claude code
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
+#============= Install ROS 2 Nav2 + SLAM (Jazzy) =============#
+# Navigation stack used by examples/apartment.ipynb (SLAM + Nav2 for Stretch).
+# The base image pins the ROS core at an older snapshot than these Nav2 builds,
+# so fastcdr must be upgraded too -- otherwise the C++ nodes (controller_server,
+# slam_toolbox) die with `undefined symbol: ..._ZN8eprosima7fastcdr3Cdr9serializeEj`
+# (Fast-CDR ABI mismatch). Installing ros-jazzy-fastcdr pulls the matching version.
+RUN sudo apt-get update && \
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ros-jazzy-fastcdr \
+        ros-jazzy-navigation2 \
+        ros-jazzy-nav2-bringup \
+        ros-jazzy-slam-toolbox && \
+    sudo rm -rf /var/lib/apt/lists/*
+#============================================================#
+
 # Install python packages
 USER ${NB_USER}
 COPY --chown=${NB_USER}:users binder/requirements.txt /tmp/requirements.txt
@@ -54,6 +69,11 @@ ENV REPO_DIR=${HOME}/isaacsim-template
 RUN mkdir -p ${REPO_DIR}
 COPY --chown=${NB_USER}:users . ${REPO_DIR}/
 RUN git config --global --add safe.directory ${REPO_DIR}
+
+# Build the Nav2 ROS workspace (stretch_nav2: launch + params + rviz) so the
+# apartment.ipynb "Launch SLAM + Nav2" cell can source it directly.
+RUN cd ${REPO_DIR}/nav2_ws && \
+    bash -c "source /opt/ros/jazzy/setup.bash && colcon build --symlink-install"
 
 # Set Jupyterlab default directory
 WORKDIR ${REPO_DIR}
