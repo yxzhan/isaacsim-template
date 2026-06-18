@@ -277,21 +277,24 @@ print("RTX lidar ready. beams:", len(_frame.get("linear_depth_data", [])),
       "| azimuth range (deg):", _frame.get("azimuth_range"))
 
 
-# ## IK pick-and-place example
+# ## IK and gripper control
 # 
-# A minimal pick-and-place driven by **inverse kinematics**. We use Lula's
-# `LulaKinematicsSolver`, which reads the manipulator chain from
-# `usd/stretch/stretch_descriptor.yaml` (lift + the four telescoping arm segments +
-# wrist yaw) and solves for the joint angles that place the `link_grasp_center`
-# frame at a Cartesian target.
+# Helper methods for **inverse-kinematics** end-effector control and opening/closing
+# the gripper. We use Lula's `LulaKinematicsSolver`, which reads the manipulator
+# chain from `usd/stretch/stretch_descriptor.yaml` (lift + the four telescoping arm
+# segments + wrist yaw) and solves for the joint angles that place the
+# `link_grasp_center` frame at a Cartesian target.
 # 
-# The arm reaches sideways (along the robot's −Y), so reachable grasp targets sit
-# roughly at `x ≈ base_x`, `y ∈ [base_y − 0.93, base_y − 0.42]`, `z = lift + 0.11`.
-# We spawn a small box on a table inside that envelope, then drive the gripper
-# through *approach → grasp → lift → place* poses, solving IK for each one.
+# - `move_ee(world_pos)` — solve IK for a world-frame target and drive the arm there.
+# - `set_gripper(value)` — open/close the gripper (`GRIPPER_OPEN` / `GRIPPER_CLOSE`).
 # 
-# > Run this section **before** the ROS bridge below (it steps the world on its
-# > own). The arm gain fix above must already have been applied.
+# The arm reaches sideways (along the robot's −Y), so reachable targets sit roughly
+# at `x ≈ base_x`, `y ∈ [base_y − 0.93, base_y − 0.42]`, `z = lift + 0.11`. These
+# same `ik_solver` / `ik_dof` / `finger_dof` / `EE_QUAT` values also back the ROS
+# `/stretch/ee_command` and `/stretch/gripper_command` control in the bridge below.
+# 
+# > Run this section **before** the ROS bridge below. The arm gain fix above must
+# > already have been applied.
 
 # In[ ]:
 
@@ -300,7 +303,6 @@ from isaacsim.core.utils.extensions import enable_extension
 enable_extension("isaacsim.robot_motion.motion_generation")
 
 from isaacsim.robot_motion.motion_generation import LulaKinematicsSolver
-from isaacsim.core.api.objects import DynamicCuboid, FixedCuboid
 
 # --- IK solver over the Stretch manipulator chain ---
 stretch_dir = f"{BASE_DIR}/../usd/stretch"
@@ -309,7 +311,6 @@ ik_solver = LulaKinematicsSolver(
     urdf_path=f"{stretch_dir}/stretch.urdf",
 )
 EE_FRAME = "link_grasp_center"
-GRASP_PRIM = "/World/stretch/link_wrist_roll/link_gripper_s3_body/link_grasp_center"
 
 ik_joints = ik_solver.get_joint_names()                       # cspace order
 ik_dof = [stretch.get_dof_index(n) for n in ik_joints]
@@ -320,53 +321,16 @@ finger_dof = [stretch.get_dof_index(n)
 EE_QUAT = rot_utils.euler_angles_to_quats(np.array([0, 0, -90]), degrees=True)
 GRIPPER_OPEN, GRIPPER_CLOSE = 0.55, 0.0       # finger joint at 0 = fully closed
 
-# --- a table and a small box to pick, inside the arm's reach ---
-base_xy = stretch.get_world_poses()[0][0][:2]                 # robot base x, y
-TABLE_TOP = 0.5
-PICK_XY = np.array([base_xy[0] - 0.02, base_xy[1] - 0.70])    # reachable
-PLACE_XY = np.array([base_xy[0] - 0.02, base_xy[1] - 0.45])
-
-FixedCuboid(
-    prim_path="/World/ik_table", name="ik_table",
-    position=np.array([base_xy[0] - 0.02, base_xy[1] - 0.575, TABLE_TOP / 2]),
-    scale=np.array([0.30, 0.60, TABLE_TOP]),
-    color=np.array([0.35, 0.25, 0.18]),
-)
-cube = DynamicCuboid(
-    prim_path="/World/ik_cube", name="ik_cube",
-    position=np.array([PICK_XY[0], PICK_XY[1], TABLE_TOP + 0.03]),
-    scale=np.array([0.05, 0.05, 0.05]),
-    color=np.array([0.9, 0.1, 0.1]), mass=0.05,
-)
-my_world.scene.add(cube)
-my_world.reset()
-
-# world.reset() rebuilds the physics view, so re-apply the arm gain/speed fix.
-stretch.set_gains(kps=kps, kds=kds, joint_indices=arm_dof)
-stretch.set_max_efforts(np.full((1, len(arm_dof)), 200.0), joint_indices=arm_dof)
-stretch.set_max_joint_velocities(np.full((1, len(arm_dof)), ARM_MAX_VEL), joint_indices=arm_dof)
-
-_xcache = UsdGeom.XformCache()
-_held = False
-
-
-def _grasp_center_pos():
-    _xcache.Clear()
-    t = _xcache.GetLocalToWorldTransform(stage.GetPrimAtPath(GRASP_PRIM)).ExtractTranslation()
-    return np.array([t[0], t[1], t[2]])
-
 
 def step_sim(n=1):
-    """Step the world; while holding, carry the cube with the grasp frame."""
+    """Step the world n times."""
     for _ in range(n):
         my_world.step(render=True)
-        if _held:
-            cube.set_world_pose(_grasp_center_pos(), EE_QUAT)
-            cube.set_linear_velocity(np.zeros(3))
-            cube.set_angular_velocity(np.zeros(3))
 
 
 def set_gripper(value, n=40):
+    """Open/close the gripper: drive both finger joints to `value`
+    (GRIPPER_OPEN / GRIPPER_CLOSE)."""
     tgt = stretch.get_joint_positions()[0].copy()
     for i in finger_dof:
         tgt[i] = value
@@ -393,34 +357,6 @@ def move_ee(world_pos, n=160):
 
 
 print("IK ready. cspace joints:", ik_joints)
-
-
-# In[ ]:
-
-
-# # Cartesian waypoints (world frame). grasp_center sits at z = cube center.
-# GRASP_Z = TABLE_TOP + 0.03
-# APPROACH_Z = GRASP_Z + 0.20
-
-# pick = np.array([PICK_XY[0], PICK_XY[1], GRASP_Z])
-# place = np.array([PLACE_XY[0], PLACE_XY[1], GRASP_Z])
-
-# print("1) open gripper");          set_gripper(GRIPPER_OPEN)
-# print("2) approach above pick");   move_ee(pick + [0, 0, 0.20])
-# print("3) descend to grasp");      move_ee(pick)
-# print("4) close gripper");         set_gripper(GRIPPER_CLOSE)
-
-# _held = True                       # carry the cube with the grasp frame
-# print("5) lift");                  move_ee(pick + [0, 0, 0.20])
-# print("6) move above place");      move_ee(place + [0, 0, 0.20])
-# print("7) descend to place");      move_ee(place)
-
-# _held = False                      # let the cube rest on the table
-# print("8) open gripper");          set_gripper(GRIPPER_OPEN)
-# print("9) retract");               move_ee(place + [0, 0, 0.20])
-
-# step_sim(60)
-# print("pick-and-place done.")
 
 
 # ## ROS 2 bridge node
@@ -753,8 +689,8 @@ source /opt/ros/jazzy/setup.bash
 source ../nav2_ws/install/setup.bash
 ros2 launch stretch_nav2 slam_nav2.launch.py
 '''
-# nav2_proc = subprocess.Popen(["bash", "-c", nav_launch],
-#                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+nav2_proc = subprocess.Popen(["bash", "-c", nav_launch],
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
 print("SLAM + Nav2 launching (slam_toolbox + nav2_bringup)...")
 
 
@@ -770,10 +706,10 @@ os.environ.pop("PYTHONPATH", None)
 launch = '''
 source /opt/ros/jazzy/setup.bash
 source ../nav2_ws/install/setup.bash
-rviz2 -d $(ros2 pkg prefix stretch_nav2)/share/stretch_nav2/rviz/nav2.rviz
+rviz2 -d ./stretch.rviz
 '''
-# subprocess.Popen(["bash", "-c", launch],
-#                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+subprocess.Popen(["bash", "-c", launch],
+                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
 
 
 # ## Run the simulation loop

@@ -48,10 +48,25 @@ RUN curl -fsSL https://claude.ai/install.sh | bash
 # The base image pins the ROS core at an older snapshot than these Nav2 builds,
 # so fastcdr must be upgraded too -- otherwise the C++ nodes (controller_server,
 # slam_toolbox) die with `undefined symbol: ..._ZN8eprosima7fastcdr3Cdr9serializeEj`
-# (Fast-CDR ABI mismatch). Installing ros-jazzy-fastcdr pulls the matching version.
+# (Fast-CDR ABI mismatch).
+#
+# packages.ros.org is rolling (only the latest build of each package is kept), so
+# pulling ros-jazzy-fastcdr alone gets a fastcdr that is NEWER than the base
+# image's fastrtps / rmw_fastrtps / rosidl typesupport. That skew makes EVERY node
+# creation abort inside Fast-DDS's XTypes type-cache with
+#   eprosima::fastcdr::exception::BadParamException: This member is not been selected
+# (see examples/launcher.ipynb -> CmdVelPublisher). So upgrade the whole Fast-DDS
+# serialization stack together to keep fastcdr and fastrtps consistent.
 RUN sudo apt-get update && \
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         ros-jazzy-fastcdr \
+        ros-jazzy-fastrtps \
+        ros-jazzy-rmw-fastrtps-cpp \
+        ros-jazzy-rmw-fastrtps-shared-cpp \
+        ros-jazzy-rosidl-dynamic-typesupport \
+        ros-jazzy-rosidl-dynamic-typesupport-fastrtps \
+        ros-jazzy-rosidl-typesupport-fastrtps-cpp \
+        ros-jazzy-rosidl-typesupport-fastrtps-c \
         ros-jazzy-navigation2 \
         ros-jazzy-nav2-bringup \
         ros-jazzy-slam-toolbox && \
