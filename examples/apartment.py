@@ -64,7 +64,7 @@ original_stderr = sys.stderr
 
 simulation_app = SimulationApp({
     "headless": False,
-    "hide_ui": False,
+    "hide_ui": True,
     "width": 1280,
     "height": 960,
     "renderer": "RaytracedLighting",
@@ -118,7 +118,7 @@ for i in range(1, 4):
         position=(-4 * i, 0, 2),
     )
 
-viewports.set_camera_view(eye=np.array([-7, -2, 2]), target=np.array([-1, 1, 1]))
+viewports.set_camera_view(eye=np.array([-6.5, -2, 2]), target=np.array([-1, 1, 1]))
 
 for _ in range(30):
     my_world.step(render=True)
@@ -145,7 +145,10 @@ create_prim(
 
 # The other IAI robots are spawned as static props only (no Articulation,
 # so they are not simulated/controllable -- just there for the scene).
-other_robots = ["pr2", "hsrb", "tiago_dual"]
+other_robots = ["pr2", 
+                "hsrb", 
+                # "tiago_dual"
+               ]
 for i, robot in enumerate(other_robots):
     create_prim(
         usd_path=f"{BASE_DIR}/../usd/{robot}/{robot}.usd",
@@ -195,6 +198,107 @@ stretch.set_max_joint_velocities(np.full((1, len(arm_dof)), ARM_MAX_VEL), joint_
 for _ in range(10):
     my_world.step(render=True)
 print("Arm joint gains updated:", arm_joints)
+
+
+# ## Fix the drive-wheel gains
+# 
+# The two drive wheels (`joint_left_wheel` / `joint_right_wheel`) come in from the
+# URDF with a large Coulomb joint friction (`friction="10.48"`) and, like the arm,
+# a tiny auto-generated force budget. Because `cmd_vel` is scaled down by `factor`
+# in the ROS bridge, a low angular command produces a velocity-drive torque too
+# small to break that static friction — so the base won't start turning in place
+# until `|angular.z|` is large (~0.9).
+# 
+# We put the wheels in pure velocity-drive mode (stiffness 0), give them a firm
+# damping gain, and — crucially — a real effort budget so low-speed rotation breaks
+# away cleanly.
+
+# In[ ]:
+
+
+wheel_joints = ["joint_left_wheel", "joint_right_wheel"]
+wheel_dof = np.array([stretch.get_dof_index(n) for n in wheel_joints])
+
+# Show the as-imported wheel drive params so the bottleneck is visible.
+_kps_now, _kds_now = stretch.get_gains()
+print("Wheel gains (as imported):",
+      "kps=", _kps_now[0, wheel_dof],
+      "kds=", _kds_now[0, wheel_dof],
+      "max_eff=", stretch.get_max_efforts()[0, wheel_dof],
+      "joint_friction=", stretch.get_friction_coefficients()[0, wheel_dof])
+
+# Velocity drive: no position stiffness, firm damping, generous effort budget.
+stretch.set_gains(
+    kps=np.zeros((1, len(wheel_dof))),
+    kds=np.full((1, len(wheel_dof)), 1.0e3),
+    joint_indices=wheel_dof,
+)
+stretch.set_max_efforts(np.full((1, len(wheel_dof)), 100.0), joint_indices=wheel_dof)
+
+# Remove the wheels' Coulomb joint friction (URDF friction="10.48" is a real-robot
+# gearbox value). In sim it causes the low-speed in-place-rotation deadzone: the
+# velocity drive's torque kd*(target-vel) collapses below 10.48 N*m as a wheel
+# nears a low target speed, so small angular commands (which map to low wheel
+# speeds, esp. with the tiny 0.0125 m radius) stall before the base turns.
+stretch.set_friction_coefficients(np.zeros((1, len(wheel_dof))), joint_indices=wheel_dof)
+
+for _ in range(10):
+    my_world.step(render=True)
+print("Wheel joint gains updated:", wheel_joints)
+
+
+# ## Make the base/caster contact frictionless
+# 
+# The base has a single **caster** (a sphere on a *fixed* joint). On URDF import
+# Isaac merges fixed-joint links into their parent, so the caster has **no
+# separate collider** -- it is baked into `base_link`'s collision. A differential
+# drive rests on two coaxial wheels (statically unstable on their own), so this
+# `base_link` contact is the third floor support.
+# 
+# The URDF declares the caster frictionless (`<mu>0</mu>`), but that ODE tag is
+# dropped on import, so the `base_link` contact carries Isaac's default friction
+# and scrubs the floor when turning in place -- blocking low-speed in-place
+# rotation while translation (kinetic sliding) still works.
+# 
+# We bind a zero-friction physics material to the `base_link` collision (the wheels
+# keep their friction for traction). The bbox print confirms what rests on the
+# floor: `base_link` `min_z` should sit near the wheel `min_z` (~0).
+
+# In[ ]:
+
+
+import omni
+from pxr import Usd, UsdGeom, UsdShade, UsdPhysics
+
+stage = omni.usd.get_context().get_stage()
+
+# Diagnostic: lowest world-space point of each collider, to confirm what rests
+# on the floor (z=0). The caster is merged into base_link, so base_link's
+# collision is the third support point besides the two wheels.
+bbox = UsdGeom.BBoxCache(Usd.TimeCode.Default(),
+                         [UsdGeom.Tokens.default_, UsdGeom.Tokens.render,
+                          UsdGeom.Tokens.proxy, UsdGeom.Tokens.guide])
+for path in ["/World/stretch/base_link/collisions",
+             "/World/stretch/link_left_wheel/collisions",
+             "/World/stretch/link_right_wheel/collisions"]:
+    rng = bbox.ComputeWorldBound(stage.GetPrimAtPath(path)).ComputeAlignedRange()
+    print(f"{path}: min_z={rng.GetMin()[2]:.4f}")
+
+# Frictionless material -> restores the intended (frictionless) caster glide.
+mat = UsdShade.Material.Define(stage, "/World/PhysicsMaterials/base_frictionless")
+_pm = UsdPhysics.MaterialAPI.Apply(mat.GetPrim())
+_pm.CreateStaticFrictionAttr().Set(0.0)
+_pm.CreateDynamicFrictionAttr().Set(0.0)
+_pm.CreateRestitutionAttr().Set(0.0)
+
+base_col = stage.GetPrimAtPath("/World/stretch/base_link/collisions")
+UsdShade.MaterialBindingAPI.Apply(base_col).Bind(
+    mat, bindingStrength=UsdShade.Tokens.strongerThanDescendants,
+    materialPurpose="physics")
+
+for _ in range(10):
+    my_world.step(render=True)
+print("Frictionless material bound to base_link collision.")
 
 
 # ## Add head and gripper cameras
@@ -359,6 +463,248 @@ def move_ee(world_pos, n=160):
 print("IK ready. cspace joints:", ik_joints)
 
 
+# ## Add a Franka arm doing looping pick-and-place
+# 
+# We drop a **Franka Panda** on the apartment table, yawed 90° counter-clockwise so
+# it faces world **+Y**, and have it shuttle a **banana** back and forth across the
+# table forever. The banana ships as a visual-only YCB mesh, so we add an **SDF**
+# (signed-distance-field) mesh collision + rigid body at load — it follows the
+# banana's real curved shape rather than a fat convex hull.
+# 
+# The built-in `PickPlaceController` (RMPflow + a 10-phase grasp state machine) does
+# the motion; a tiny `FrankaPickPlace` manager runs the loop (side A → side B, then
+# back). RMPflow uses the robot's **world** pose as its base, so all targets are
+# world-frame; the grasp height is read from the banana's **settled** bounding box.
+# A high-friction material on the fingers + banana keeps it from slipping out.
+# 
+# Because the banana is long and thin, the manager rotates the top-down grasp so the
+# gripper closes across its **short** axis (picked from the bounding box each
+# attempt). If the grasp ever closes along the banana's *length* instead, flip the
+# convention with `GRASP_YAW_OFFSET = 90`.
+# 
+# > The arm is autonomous (no ROS topic). Run these three cells before the
+# > simulation loop; the loop calls `franka_mgr.step()` each tick.
+
+# In[ ]:
+
+
+import omni
+from isaacsim.core.utils.stage import add_reference_to_stage
+from isaacsim.robot.manipulators import SingleManipulator
+from isaacsim.robot.manipulators.grippers import ParallelGripper
+from isaacsim.storage.native import get_assets_root_path
+import isaacsim.core.utils.numpy.rotations as rot_utils
+from pxr import UsdShade, UsdPhysics
+
+stage = omni.usd.get_context().get_stage()
+
+# Franka base sits on the apartment table; the arm has a fixed base so it stays
+# put here regardless of what is underneath. The objects below derive their grasp
+# height from where they actually settle, so this need not match the table exactly.
+FRANKA_BASE = np.array([-2.0, -1.86, 0.75])
+TABLE_TOP_Z = 1.0
+# Yaw the arm 90 deg counter-clockwise about +Z, so its "forward" (+X local)
+# now points along world +Y. The pick-and-place row is laid out to match below.
+FRANKA_YAW = 90.0
+FRANKA_QUAT = rot_utils.euler_angles_to_quats(np.array([0, 0, FRANKA_YAW]), degrees=True)  # [w, x, y, z]
+
+assets_root = get_assets_root_path()
+franka_usd = assets_root + "/Isaac/Robots/FrankaRobotics/FrankaPanda/franka.usd"
+franka_prim = add_reference_to_stage(usd_path=franka_usd, prim_path="/World/Franka")
+# Grippy rubber fingers + quality meshes (no-op if the variant sets are absent).
+franka_prim.GetVariantSet("Gripper").SetVariantSelection("AlternateFinger")
+franka_prim.GetVariantSet("Mesh").SetVariantSelection("Quality")
+
+# action_deltas=None so "close" commands the FULL closed target ([0, 0]) in one
+# shot and holds it -- the position error against the grasped object becomes the
+# grip force. (With deltas set, "close" only nudges current - delta each step and
+# never fully clamps.)
+franka_gripper = ParallelGripper(
+    end_effector_prim_path="/World/Franka/panda_rightfinger",
+    joint_prim_names=["panda_finger_joint1", "panda_finger_joint2"],
+    joint_opened_positions=np.array([0.04, 0.04]),
+    joint_closed_positions=np.array([0.0, 0.0]),
+    action_deltas=None,
+)
+franka = my_world.scene.add(
+    SingleManipulator(
+        prim_path="/World/Franka",
+        name="franka",
+        end_effector_prim_path="/World/Franka/panda_rightfinger",
+        position=FRANKA_BASE,
+        orientation=FRANKA_QUAT,
+        gripper=franka_gripper,
+    )
+)
+
+# High-friction physics material so grasped objects don't slide out of the
+# gripper during the lift. Bind it to both fingers here (before the reset so it
+# is applied); the object's collision gets the same material in the next cell.
+grip_mat = UsdShade.Material.Define(stage, "/World/PhysicsMaterials/high_friction")
+_gm = UsdPhysics.MaterialAPI.Apply(grip_mat.GetPrim())
+_gm.CreateStaticFrictionAttr().Set(2.0)
+_gm.CreateDynamicFrictionAttr().Set(2.0)
+_gm.CreateRestitutionAttr().Set(0.0)
+for _finger in ["/World/Franka/panda_leftfinger", "/World/Franka/panda_rightfinger"]:
+    UsdShade.MaterialBindingAPI.Apply(stage.GetPrimAtPath(_finger)).Bind(
+        grip_mat, bindingStrength=UsdShade.Tokens.strongerThanDescendants, materialPurpose="physics")
+
+# Re-init the physics view so the new articulation is registered. Stretch's drive
+# gain / friction fixes are USD/PhysX attributes and survive this reset.
+my_world.reset()
+# Actually drive the gripper OPEN now. set_default_state only records the open
+# default; with no reset after it the fingers keep the Franka articulation default
+# (closed), so the first pick would descend with a shut gripper -- the controller
+# only opens the gripper at the release phase, never before the first grasp.
+franka.gripper.set_default_state(franka.gripper.joint_opened_positions)
+franka.get_articulation_controller().apply_action(franka.gripper.forward("open"))
+for _ in range(10):
+    my_world.step(render=True)
+print("Franka spawned at", FRANKA_BASE, "yaw", FRANKA_YAW, "deg | dof:", franka.num_dof)
+
+
+# In[ ]:
+
+
+import omni
+from isaacsim.core.prims import SingleRigidPrim
+from isaacsim.robot.manipulators.examples.franka.controllers.pick_place_controller import PickPlaceController
+from omni.physx.scripts import utils as physx_utils
+from pxr import Usd, UsdGeom, UsdShade
+
+stage = omni.usd.get_context().get_stage()
+grip_mat = UsdShade.Material.Get(stage, "/World/PhysicsMaterials/high_friction")  # high-friction grasp material (from the Franka cell)
+
+# Just the banana now. It is a visual-only YCB mesh, so we add an *SDF* (signed-
+# distance-field) mesh collision -- it follows the banana's actual curved shape
+# (not a fat convex hull) and still works for a dynamic rigid body. grasp_frac
+# picks the top-down grasp height along the settled object (0 = bottom, 1 = top).
+YCB = "/Isaac/Props/YCB"
+OBJECT_SPECS = [
+    {"name": "banana", "usd": f"{YCB}/Axis_Aligned/011_banana.usd", "collision": "sdf", "yaw": 0.0, "grasp_frac": 0.5},
+]
+
+# Object(s) in front of the arm (+Y), shuttled across the table along X.
+ROW_Y = [0.45]                                               # forward distance from base (+Y)
+X_A, X_B = FRANKA_BASE[0] + 0.22, FRANKA_BASE[0] - 0.22      # side A / side B (along X)
+# The gripper's fingers open across the object's SHORT horizontal axis (chosen
+# from the settled bounding box). If it instead closes along the banana's length,
+# the absolute gripper-axis convention is 90 deg off -- set this to 90.
+GRASP_YAW_OFFSET = 0.0
+# Rest each object just above the table (its surface is ~ the arm base height) so
+# it barely settles -- a big drop would topple/scatter it.
+SPAWN_TOP = FRANKA_BASE[2]
+SPAWN_GAP = 0.02
+_spawn_bb = UsdGeom.BBoxCache(Usd.TimeCode.Default(),
+                              [UsdGeom.Tokens.default_, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy])
+
+franka_objs = []
+for i, spec in enumerate(OBJECT_SPECS):
+    prim_path = f"/World/franka_obj_{i}"
+    prim = add_reference_to_stage(usd_path=assets_root + spec["usd"], prim_path=prim_path)
+    # Lowest point of the asset relative to its origin, so we can sit it on the table.
+    _min_z = float(_spawn_bb.ComputeWorldBound(prim).ComputeAlignedRange().GetMin()[2])
+    if not np.isfinite(_min_z):
+        _min_z = 0.0
+    physx_utils.setRigidBody(prim, spec["collision"], False)   # collision + dynamic body
+    if grip_mat:                                               # grippy contact (matches the fingers)
+        UsdShade.MaterialBindingAPI.Apply(prim).Bind(
+            grip_mat, bindingStrength=UsdShade.Tokens.strongerThanDescendants, materialPurpose="physics")
+    slot_a = np.array([X_A, FRANKA_BASE[1] + ROW_Y[i]])
+    q = rot_utils.euler_angles_to_quats(np.array([0, 0, spec["yaw"]]), degrees=True)
+    spawn_z = SPAWN_TOP + SPAWN_GAP - _min_z                  # object base sits SPAWN_GAP over the table
+    obj = my_world.scene.add(SingleRigidPrim(
+        prim_path=prim_path, name=f"franka_obj_{i}",
+        position=np.array([slot_a[0], slot_a[1], spawn_z]),
+        orientation=q,
+    ))
+    franka_objs.append({"name": spec["name"], "path": prim_path, "prim": obj,
+                        "grasp_frac": spec["grasp_frac"], "slot_a": slot_a,
+                        "slot_b": np.array([X_B, FRANKA_BASE[1] + ROW_Y[i]])})
+
+# my_world.reset()
+for _ in range(90):                                           # let the objects settle on the table
+    my_world.step(render=True)
+
+# Per-object top-down grasp height from the settled world AABB. Reading where the
+# objects actually came to rest makes this robust to the real table height.
+_bbox = UsdGeom.BBoxCache(Usd.TimeCode.Default(),
+                          [UsdGeom.Tokens.default_, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy])
+for o in franka_objs:
+    rng = _bbox.ComputeWorldBound(stage.GetPrimAtPath(o["path"])).ComputeAlignedRange()
+    zmin, zmax = float(rng.GetMin()[2]), float(rng.GetMax()[2])
+    o["grasp_z"] = zmin + o["grasp_frac"] * (zmax - zmin)
+    p = o["prim"].get_world_pose()[0]
+    print(f"{o['name']:9s} settled @ ({p[0]:.2f}, {p[1]:.2f}, {p[2]:.2f})  "
+          f"z=[{zmin:.3f}, {zmax:.3f}]  grasp_z={o['grasp_z']:.3f}")
+
+# Transit/approach height: clear the tallest settled object with margin.
+LIFT_Z = max(o["grasp_z"] for o in franka_objs) + 0.20
+
+# Pick-place controller -- built AFTER the Franka is positioned so RMPFlow
+# captures the correct world base pose. All target heights are world-frame.
+franka_controller = PickPlaceController(
+    name="franka_pick_place",
+    gripper=franka.gripper,
+    robot_articulation=franka,
+    end_effector_initial_height=LIFT_Z,
+)
+
+
+class FrankaPickPlace:
+    """Shuttle the objects side A -> side B, then B -> A, forever, one at a time."""
+
+    def __init__(self, robot, controller, objs, yaw_offset=0.0):
+        self.robot, self.controller, self.objs = robot, controller, objs
+        self.yaw_offset = yaw_offset
+        self.idx, self.reverse = 0, False
+        self.art = robot.get_articulation_controller()
+        self._pick_xy = None            # latched per pick attempt (recomputed at event 0)
+        self._grasp_q = None
+
+    def _acquire(self, o):
+        """Read the object's live settled bounding box: return its horizontal
+        CENTRE (for the pre-grasp xy) and a straight-down grasp orientation whose
+        fingers open across the object's SHORT axis."""
+        bb = UsdGeom.BBoxCache(Usd.TimeCode.Default(),
+                               [UsdGeom.Tokens.default_, UsdGeom.Tokens.render, UsdGeom.Tokens.proxy])
+        r = bb.ComputeWorldBound(stage.GetPrimAtPath(o["path"])).ComputeAlignedRange()
+        lo, hi = r.GetMin(), r.GetMax()
+        cx, cy = 0.5 * (lo[0] + hi[0]), 0.5 * (lo[1] + hi[1])
+        dx, dy = float(hi[0] - lo[0]), float(hi[1] - lo[1])
+        # default fingers open along world Y at yaw 0: long axis X -> yaw 0; long axis Y -> yaw 90.
+        yaw = (0.0 if dx >= dy else 90.0) + self.yaw_offset
+        q = rot_utils.euler_angles_to_quats(np.array([0.0, 180.0, yaw]), degrees=True)
+        return np.array([cx, cy]), q
+
+    def step(self):
+        o = self.objs[self.idx]
+        if self.controller.get_current_event() == 0 and self._pick_xy is None:
+            self._pick_xy, self._grasp_q = self._acquire(o)   # dynamically locate the object
+        pick = np.array([self._pick_xy[0], self._pick_xy[1], o["grasp_z"]])
+        slot = o["slot_a"] if self.reverse else o["slot_b"]
+        place = np.array([slot[0], slot[1], o["grasp_z"]])
+        actions = self.controller.forward(
+            picking_position=pick,
+            placing_position=place,
+            current_joint_positions=self.robot.get_joint_positions(),
+            end_effector_offset=np.array([0, 0.005, 0]),
+            end_effector_orientation=self._grasp_q,
+        )
+        self.art.apply_action(actions)
+        if self.controller.is_done():
+            self.controller.reset()                              # ready for the next object
+            self._pick_xy = None                                 # re-acquire the next object's pose
+            self.idx += 1
+            if self.idx >= len(self.objs):                       # whole side done -> swap
+                self.idx = 0
+                self.reverse = not self.reverse
+
+
+franka_mgr = FrankaPickPlace(franka, franka_controller, franka_objs, yaw_offset=GRASP_YAW_OFFSET)
+print("Franka pick-and-place manager ready (banana). LIFT_Z =", round(LIFT_Z, 3))
+
+
 # ## ROS 2 bridge node
 # 
 # A single node for the Stretch robot:
@@ -476,7 +822,11 @@ class StretchROS(Node):
         vel = np.zeros(self.robot.num_dof)
         vel[self.left_wheel] = v_left * self.factor
         vel[self.right_wheel] = v_right * self.factor
-        self.robot.set_joint_velocities([vel])
+        # Set the velocity-drive TARGET (not the instantaneous velocity state):
+        # cmd_vel_cb only fires per incoming Twist (~10-20 Hz) while physics runs
+        # at 200 Hz, so a one-shot set_joint_velocities() decays back to the
+        # drive's default 0 target between messages -> low-speed deadzone.
+        self.robot.set_joint_velocity_targets([vel])
 
     def joint_cmd_cb(self, msg):
         target = self.robot.get_joint_positions()[0]
@@ -727,6 +1077,8 @@ bar_format = "{l_bar}{bar}| {n_fmt}/{total_fmt} steps] {elapsed_s:.2f}s"
 
 for frame in tqdm(range(steps), desc="ROS Spin", ncols=60, bar_format=bar_format, file=sys.stdout):
     my_world.step(render=True)
+    if "franka_mgr" in globals():
+        franka_mgr.step()                 # advance the Franka pick-and-place loop
     rclpy.spin_once(stretch_node, timeout_sec=0.0)
     stretch_node.publish_joint_states()
     stretch_node.publish_tf()

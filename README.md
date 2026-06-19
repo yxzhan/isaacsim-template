@@ -2,7 +2,11 @@
 
 [![Binder](https://binder.intel4coro.de/badge_logo.svg)](https://binder.dev.intel4coro.de/v2/gh/yxzhan/isaacsim-template/main?urlpath=lab%2Ftree%2Fexamples%2Flauncher.ipynb)
 
-This is a template repo for running modern robot simulators (such as Isaac Sim and Unreal Engine) on the GPU-enabled AIRCOR VRB cloud server.
+This project aims to establish an open **benchmark for robotic manipulation and mobile-manipulation in everyday household environments**. Built on high-fidelity digital twins of real laboratories and robots, it leverages the GPU-enabled [AIRCOR Virtual Research Building (VRB)](https://vrb.ease-crc.org/) to deliver fully reproducible, browser-accessible simulation — and to host online robotics competitions in which research teams worldwide can participate without any local setup. A central goal is to **minimize the sim-to-real gap**: because each virtual environment is a faithful twin of a physical lab and robot, solutions that succeed in simulation are designed to transfer directly to their real-world counterparts, allowing the same benchmark tasks to be validated on real hardware. The collection of benchmark environments is continuously growing: digital twins contributed by our partner research institutes will be progressively integrated, broadening the diversity of scenes, robots, and tasks available to the community.
+
+We are designing a suite of tasks organized into progressive levels of difficulty, ranging from **fundamental manipulation skills** (e.g., opening a drawer, turning on a faucet), through **mobile-manipulation tasks** (e.g., transporting a cup from the kitchen to the living room), up to **long-horizon, compositional household tasks** (e.g., preparing dinner). The **[CRAM cognitive architecture](https://cram2.github.io/cognitive_robot_abstract_machine/) — a knowledge-driven, symbolic planning approach —** is intended to serve as the reference baseline for these tasks. Other research groups can then develop, deploy, and benchmark their own methods against this common, standardized point of comparison, whether based on **Vision-Language-Action (VLA) models** (e.g., RT-2, OpenVLA, π0), **imitation learning**, **reinforcement learning**, classical task-and-motion planning, or hybrid neuro-symbolic pipelines.
+
+The repository itself is a ready-to-use template for running modern robot simulators (such as Isaac Sim and Unreal Engine) on the GPU-enabled AIRCOR VRB cloud server.
 
 https://github.com/user-attachments/assets/1b3cd8d2-048c-43c3-9e97-31fb69fb479b
 

@@ -7,8 +7,8 @@
                 double radius = 5
             }
             dictionary Perspective = {
-                double3 position = (-3.990015965057049, -3.182946301708965, 1.8360733364886828)
-                double3 target = (10.662141462254949, -5.055959796299273, -0.8923571784628817)
+                double3 position = (2.3174133646271833, -5.786606658102461, 0.7706939825461918)
+                double3 target = (9.458990230299404, -7.500671848038393, -2.2331268948890513)
             }
             dictionary Right = {
                 double3 position = (0, -5, 0)
@@ -28697,15 +28697,15 @@ def Xform "apartmentICRA" (
     }
 
     def Xform "SM_DiningTable" (
-        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+        delete apiSchemas = ["PhysicsRigidBodyAPI"]
+        prepend apiSchemas = ["PhysicsMassAPI"]
     )
     {
         point3f physics:centerOfMass = (0.0000010023317, 9.446276e-7, 0.28347418)
         float3 physics:diagonalInertia = (7.810642, 12.955097, 13.534605)
         float physics:mass = 36.17989
         quatf physics:principalAxes = (-0.00000590409, 0.7071049, 0.7071086, -0.0000046418268)
-        bool physics:rigidBodyEnabled = 1
-        matrix4d xformOp:transform = ( (-0.000002129301688080787, 0.9999999999977333, 0, 0), (-0.9999999999977333, -0.000002129301688080787, 0, 0), (0, 0, 1, 0), (4.059035468329589, -6.57453813671817, 0.37744309672918996, 1) )
+        matrix4d xformOp:transform = ( (-0.0000021293016880807873, 0.9999999999977333, 0, 0), (-0.9999999999977333, -0.0000021293016880807873, 0, 0), (0, 0, 1, 0), (4.059035468329589, -6.57453813671817, 0.31024344697619677, 1) )
         uniform token[] xformOpOrder = ["xformOp:transform"]
 
         def Mesh "SM_DiningTable" (
