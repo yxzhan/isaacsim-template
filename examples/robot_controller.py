@@ -1,11 +1,12 @@
 import os
 import re
+import math
 import numpy as np
 from urdf_parser_py.urdf import URDF
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState, Image
-from geometry_msgs.msg import Twist, Point
+from geometry_msgs.msg import Twist, Point, PoseStamped
 from std_msgs.msg import Float64
 import ipywidgets as widgets
 from IPython.display import display, Markdown, clear_output
@@ -139,6 +140,45 @@ def robot_steering(prefix=""):
     return widgets.HBox([linear_x, angular_z, btn_stop])
 
 
+def nav_goal_controller(prefix=""):
+    """Send a Nav2 navigation goal: publishes a ``PoseStamped`` on ``/goal_pose``
+    (the same topic RViz's "2D Goal Pose" tool uses). Nav2 plans a path from the
+    robot's current pose to (x, y, yaw) in the map frame and drives there via
+    ``/cmd_vel`` -- so SLAM + Nav2 must already be running."""
+    node = GoalPosePublisher()
+
+    x = widgets.FloatText(value=0.0, step=0.1, description='x (m)',
+                          style=dict(description_width='4rem'),
+                          layout=widgets.Layout(width='12rem'))
+    y = widgets.FloatText(value=0.0, step=0.1, description='y (m)',
+                          style=dict(description_width='4rem'),
+                          layout=widgets.Layout(width='12rem'))
+    yaw = widgets.FloatSlider(value=0.0, min=-180.0, max=180.0, step=5.0,
+                              description='yaw (deg)', continuous_update=False,
+                              readout_format='.0f',
+                              style=dict(description_width='5rem'),
+                              layout=widgets.Layout(width='100%'))
+
+    out = widgets.Output()
+    btn_send = widgets.Button(description='Send Goal', button_style='primary',
+                              layout=widgets.Layout(width='10rem'))
+
+    def on_send(_):
+        node.publish_goal(x.value, y.value, math.radians(yaw.value))
+        with out:
+            clear_output(wait=True)
+            print(f"Goal sent: x={x.value:.2f}, y={y.value:.2f}, "
+                  f"yaw={yaw.value:.0f} deg (frame: map)")
+
+    btn_send.on_click(on_send)
+
+    return widgets.VBox([
+        widgets.HBox([x, y, btn_send]),
+        yaw,
+        out,
+    ])
+
+
 def ee_controller(prefix="stretch"):
     """Cartesian end-effector control: publishes a base-relative target that the
     simulation solves with IK (calls ``move_ee`` on the sim side)."""
@@ -267,6 +307,27 @@ class CmdVelPublisher(Node):
 
     def publish(self):
         self.pub.publish(self.msg)
+
+
+class GoalPosePublisher(Node):
+    """Publishes Nav2 navigation goals on /goal_pose. This is a single global
+    topic (Nav2's bt_navigator default) -- it is not namespaced per robot, the
+    same way Nav2 drives the shared /cmd_vel."""
+    def __init__(self):
+        super().__init__('notebook_goal_pose_ui')
+        self.pub = self.create_publisher(PoseStamped, '/goal_pose', 10)
+
+    def publish_goal(self, x, y, yaw, frame_id='map'):
+        msg = PoseStamped()
+        msg.header.frame_id = frame_id
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.pose.position.x = float(x)
+        msg.pose.position.y = float(y)
+        # yaw -> quaternion (scalar-last, rotation about +z only)
+        msg.pose.orientation.z = math.sin(yaw / 2.0)
+        msg.pose.orientation.w = math.cos(yaw / 2.0)
+        self.pub.publish(msg)
+
 
 class NotebookJointUI(Node):
     def __init__(self, prefix=None):

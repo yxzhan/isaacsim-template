@@ -16,6 +16,14 @@ slam_toolbox:
     scan_topic: /scan
     use_map_saver: true
     mode: mapping
+    
+    # Load the previously serialized apartment map and localize against it
+    # instead of building a new one. Switch back to mode: mapping (and remove
+    # map_file_name) to map again. Re-serialize with the /slam_toolbox/serialize_map
+    # service after any further mapping.
+    # mode: localization
+    # map_file_name: nav2_ws/maps/apartment
+    # map_start_pose: [0.0, 0.0, 0.0]
 
     debug_logging: false
     throttle_scans: 1
