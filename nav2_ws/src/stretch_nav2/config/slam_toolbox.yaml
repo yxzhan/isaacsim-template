@@ -22,7 +22,12 @@ slam_toolbox:
     # map_file_name) to map again. Re-serialize with the /slam_toolbox/serialize_map
     # service after any further mapping.
     # mode: localization
-    # map_file_name: nav2_ws/maps/apartment
+    # map_file_name: /mnt/dev-tools/isaacsim-template/nav2_ws/maps/apartment
+    # The robot spawns at world (-1.5, 0, yaw 0) (apartment.py), and odom==world
+    # in this sim (ground-truth odometry). The saved map frame is rotated ~155deg
+    # from world (slam_toolbox anchored its origin at the first scan), so the
+    # spawn expressed in MAP coordinates is the value below -- NOT [0,0,0].
+    # If the robot ever spawns elsewhere, recompute or use RViz "2D Pose Estimate".
     # map_start_pose: [0.0, 0.0, 0.0]
 
     debug_logging: false
