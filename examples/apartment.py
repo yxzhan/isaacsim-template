@@ -200,105 +200,39 @@ for _ in range(10):
 print("Arm joint gains updated:", arm_joints)
 
 
-# ## Fix the drive-wheel gains
+# ## Make the base kinematic
 # 
-# The two drive wheels (`joint_left_wheel` / `joint_right_wheel`) come in from the
-# URDF with a large Coulomb joint friction (`friction="10.48"`) and, like the arm,
-# a tiny auto-generated force budget. Because `cmd_vel` is scaled down by `factor`
-# in the ROS bridge, a low angular command produces a velocity-drive torque too
-# small to break that static friction — so the base won't start turning in place
-# until `|angular.z|` is large (~0.9).
+# The two differential-drive wheels have a hard **in-place-rotation deadzone** in
+# simulation: the caster is merged into `base_link` and the centre of mass sits
+# ahead of the wheel axle, so an in-place pivot needs the wheels to scrub sideways
+# and wheel-ground static friction blocks that until `|angular.z|` is large
+# (~0.9). That is exactly the "one wheel turns, the other doesn't, the base won't
+# rotate" symptom seen in RViz.
 # 
-# We put the wheels in pure velocity-drive mode (stiffness 0), give them a firm
-# damping gain, and — crucially — a real effort budget so low-speed rotation breaks
-# away cleanly.
+# Rather than fight the contact physics, we drive the base **kinematically**: the
+# ROS node integrates the commanded twist into the base pose and teleports
+# `base_link` there every step (`StretchROS.integrate_base`). Because the pose is
+# forced directly, no contact/friction tweaks are needed -- we only leave the
+# wheels undriven (`kp=kd=0`) so their cosmetic spin adds no chassis reaction.
+# Odometry stays exact because it finite-differences the now exactly-controlled
+# `base_link` pose.
 
 # In[ ]:
 
 
-wheel_joints = ["joint_left_wheel", "joint_right_wheel"]
-wheel_dof = np.array([stretch.get_dof_index(n) for n in wheel_joints])
+# Undrive the wheels (kp=kd=0, zero joint friction). integrate_base spins them by
+# setting their velocity STATE for visuals only, so they add no reaction torque;
+# the base pose itself is forced kinematically (set_world_poses), so no contact
+# or material changes are required. These are tensor-API calls only (no USD stage
+# edit), so the physics view stays valid.
+wheel_dof = np.array([stretch.get_dof_index("joint_left_wheel"),
+                      stretch.get_dof_index("joint_right_wheel")])
+stretch.set_gains(kps=np.zeros((1, 2)), kds=np.zeros((1, 2)), joint_indices=wheel_dof)
+stretch.set_friction_coefficients(np.zeros((1, 2)), joint_indices=wheel_dof)
 
-# Show the as-imported wheel drive params so the bottleneck is visible.
-_kps_now, _kds_now = stretch.get_gains()
-print("Wheel gains (as imported):",
-      "kps=", _kps_now[0, wheel_dof],
-      "kds=", _kds_now[0, wheel_dof],
-      "max_eff=", stretch.get_max_efforts()[0, wheel_dof],
-      "joint_friction=", stretch.get_friction_coefficients()[0, wheel_dof])
-
-# Velocity drive: no position stiffness, firm damping, generous effort budget.
-stretch.set_gains(
-    kps=np.zeros((1, len(wheel_dof))),
-    kds=np.full((1, len(wheel_dof)), 1.0e3),
-    joint_indices=wheel_dof,
-)
-stretch.set_max_efforts(np.full((1, len(wheel_dof)), 100.0), joint_indices=wheel_dof)
-
-# Remove the wheels' Coulomb joint friction (URDF friction="10.48" is a real-robot
-# gearbox value). In sim it causes the low-speed in-place-rotation deadzone: the
-# velocity drive's torque kd*(target-vel) collapses below 10.48 N*m as a wheel
-# nears a low target speed, so small angular commands (which map to low wheel
-# speeds, esp. with the tiny 0.0125 m radius) stall before the base turns.
-stretch.set_friction_coefficients(np.zeros((1, len(wheel_dof))), joint_indices=wheel_dof)
-
-for _ in range(10):
+for _ in range(3):
     my_world.step(render=True)
-print("Wheel joint gains updated:", wheel_joints)
-
-
-# ## Make the base/caster contact frictionless
-# 
-# The base has a single **caster** (a sphere on a *fixed* joint). On URDF import
-# Isaac merges fixed-joint links into their parent, so the caster has **no
-# separate collider** -- it is baked into `base_link`'s collision. A differential
-# drive rests on two coaxial wheels (statically unstable on their own), so this
-# `base_link` contact is the third floor support.
-# 
-# The URDF declares the caster frictionless (`<mu>0</mu>`), but that ODE tag is
-# dropped on import, so the `base_link` contact carries Isaac's default friction
-# and scrubs the floor when turning in place -- blocking low-speed in-place
-# rotation while translation (kinetic sliding) still works.
-# 
-# We bind a zero-friction physics material to the `base_link` collision (the wheels
-# keep their friction for traction). The bbox print confirms what rests on the
-# floor: `base_link` `min_z` should sit near the wheel `min_z` (~0).
-
-# In[ ]:
-
-
-import omni
-from pxr import Usd, UsdGeom, UsdShade, UsdPhysics
-
-stage = omni.usd.get_context().get_stage()
-
-# Diagnostic: lowest world-space point of each collider, to confirm what rests
-# on the floor (z=0). The caster is merged into base_link, so base_link's
-# collision is the third support point besides the two wheels.
-bbox = UsdGeom.BBoxCache(Usd.TimeCode.Default(),
-                         [UsdGeom.Tokens.default_, UsdGeom.Tokens.render,
-                          UsdGeom.Tokens.proxy, UsdGeom.Tokens.guide])
-for path in ["/World/stretch/base_link/collisions",
-             "/World/stretch/link_left_wheel/collisions",
-             "/World/stretch/link_right_wheel/collisions"]:
-    rng = bbox.ComputeWorldBound(stage.GetPrimAtPath(path)).ComputeAlignedRange()
-    print(f"{path}: min_z={rng.GetMin()[2]:.4f}")
-
-# Frictionless material -> restores the intended (frictionless) caster glide.
-mat = UsdShade.Material.Define(stage, "/World/PhysicsMaterials/base_frictionless")
-_pm = UsdPhysics.MaterialAPI.Apply(mat.GetPrim())
-_pm.CreateStaticFrictionAttr().Set(0.0)
-_pm.CreateDynamicFrictionAttr().Set(0.0)
-_pm.CreateRestitutionAttr().Set(0.0)
-
-base_col = stage.GetPrimAtPath("/World/stretch/base_link/collisions")
-UsdShade.MaterialBindingAPI.Apply(base_col).Bind(
-    mat, bindingStrength=UsdShade.Tokens.strongerThanDescendants,
-    materialPurpose="physics")
-
-for _ in range(10):
-    my_world.step(render=True)
-print("Frictionless material bound to base_link collision.")
+print("Base set to kinematic: undriven wheels, pose-integrated base.")
 
 
 # ## Add head and gripper cameras
@@ -586,7 +520,7 @@ OBJECT_SPECS = [
 
 # Object(s) in front of the arm (+Y), shuttled across the table along X.
 ROW_Y = [0.45]                                               # forward distance from base (+Y)
-X_A, X_B = FRANKA_BASE[0] + 0.22, FRANKA_BASE[0] - 0.22      # side A / side B (along X)
+X_A, X_B = FRANKA_BASE[0] + 0.20, FRANKA_BASE[0] - 0.20      # side A / side B (along X)
 # The gripper's fingers open across the object's SHORT horizontal axis (chosen
 # from the settled bounding box). If it instead closes along the banana's length,
 # the absolute gripper-axis convention is 90 deg off -- set this to 90.
@@ -782,13 +716,24 @@ class StretchROS(Node):
         self.ee_quat = ee_quat
         self.ee_frame = ee_frame
 
-        # Differential base geometry
+        # Differential base geometry (for the cosmetic wheel spin only -- the
+        # base is driven kinematically, see integrate_base). wheel_radius is the
+        # real URDF value 0.051 (the old 0.0125 + factor=0.2 were a broken hack).
         self.wheel_base = 0.3407
-        self.wheel_radius = 0.0125
-        self.factor = 0.2
-        names = np.array(robot.dof_names)
-        self.left_wheel = np.where(np.char.find(names, "left_wheel") >= 0)[0]
-        self.right_wheel = np.where(np.char.find(names, "right_wheel") >= 0)[0]
+        self.wheel_radius = 0.051
+        self.wheel_dof = np.array([robot.get_dof_index("joint_left_wheel"),
+                                   robot.get_dof_index("joint_right_wheel")])
+
+        # Internal commanded base pose for kinematic dead-reckoning, seeded from
+        # the robot's current world pose; integrate_base advances it from cmd_vel.
+        _p, _q = robot.get_world_poses()
+        self._bx, self._by, self._bz = (float(_p[0][0]), float(_p[0][1]),
+                                        float(_p[0][2]))
+        _w, _x, _y, _z = _q[0]
+        self._byaw = math.atan2(2.0 * (_w * _z + _x * _y),
+                                1.0 - 2.0 * (_y * _y + _z * _z))
+        self._cmd_v = 0.0
+        self._cmd_w = 0.0
 
         # TF: link names and the base link index
         self.body_names = list(robot.body_names)
@@ -816,17 +761,31 @@ class StretchROS(Node):
             self.create_subscription(Float64, f"/{prefix}/gripper_command", self.gripper_cmd_cb, 10)
 
     def cmd_vel_cb(self, msg):
-        v, w = msg.linear.x, msg.angular.z
-        v_left = (v - w * self.wheel_base / 2) / self.wheel_radius
-        v_right = (v + w * self.wheel_base / 2) / self.wheel_radius
-        vel = np.zeros(self.robot.num_dof)
-        vel[self.left_wheel] = v_left * self.factor
-        vel[self.right_wheel] = v_right * self.factor
-        # Set the velocity-drive TARGET (not the instantaneous velocity state):
-        # cmd_vel_cb only fires per incoming Twist (~10-20 Hz) while physics runs
-        # at 200 Hz, so a one-shot set_joint_velocities() decays back to the
-        # drive's default 0 target between messages -> low-speed deadzone.
-        self.robot.set_joint_velocity_targets([vel])
+        # Just latch the twist; integrate_base (called every sim step) applies it.
+        self._cmd_v = float(msg.linear.x)
+        self._cmd_w = float(msg.angular.z)
+
+    def integrate_base(self, dt):
+        """Kinematic base: dead-reckon the latched twist into the base pose and
+        teleport base_link there. Avoids the differential-wheel in-place-rotation
+        deadzone (wheels scrub/stick below ~0.9 rad/s) and is exact at any speed.
+        The wheels are spun cosmetically (undriven) for TF/visual consistency."""
+        v, w = self._cmd_v, self._cmd_w
+        yaw = self._byaw
+        self._bx += v * math.cos(yaw) * dt
+        self._by += v * math.sin(yaw) * dt
+        self._byaw = yaw + w * dt
+        ny = self._byaw
+        quat = np.array([[math.cos(ny / 2.0), 0.0, 0.0, math.sin(ny / 2.0)]])
+        self.robot.set_world_poses(
+            np.array([[self._bx, self._by, self._bz]], dtype=float), quat)
+        # zero root velocity so physics does not add a second displacement
+        self.robot.set_velocities(np.zeros((1, 6)))
+        # cosmetic wheel spin (velocity STATE, undriven -> no chassis reaction)
+        vl = (v - w * self.wheel_base / 2.0) / self.wheel_radius
+        vr = (v + w * self.wheel_base / 2.0) / self.wheel_radius
+        self.robot.set_joint_velocities(
+            np.array([[vl, vr]]), joint_indices=self.wheel_dof)
 
     def joint_cmd_cb(self, msg):
         target = self.robot.get_joint_positions()[0]
@@ -1076,6 +1035,7 @@ steps = 30000
 bar_format = "{l_bar}{bar}| {n_fmt}/{total_fmt} steps] {elapsed_s:.2f}s"
 
 for frame in tqdm(range(steps), desc="ROS Spin", ncols=60, bar_format=bar_format, file=sys.stdout):
+    stretch_node.integrate_base(my_world.get_rendering_dt())
     my_world.step(render=True)
     if "franka_mgr" in globals():
         franka_mgr.step()                 # advance the Franka pick-and-place loop
