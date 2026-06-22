@@ -8,7 +8,12 @@ We are designing a suite of tasks organized into progressive levels of difficult
 
 The repository itself is a ready-to-use template for running modern robot simulators (such as Isaac Sim and Unreal Engine) on the GPU-enabled AIRCOR VRB cloud server.
 
-https://github.com/user-attachments/assets/1b3cd8d2-048c-43c3-9e97-31fb69fb479b
+
+
+
+
+https://github.com/user-attachments/assets/b077b768-90bf-4889-9256-0413824fab2e
+
 
 > ### Access Requirements:
 > 
