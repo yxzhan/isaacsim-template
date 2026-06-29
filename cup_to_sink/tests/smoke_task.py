@@ -123,7 +123,7 @@ def main() -> None:
 
     # ── get_obs() ─────────────────────────────────────────────────────────────
     log("\n--- get_obs() ---")
-    obs = task.get_obs(timestep=0)
+    obs = task.get_obs()
 
     log("  obs keys: " + str(sorted(k for k in obs if k != "images")))
     log(f"  joint_pos          shape={np.asarray(obs['joint_pos']).shape}  "

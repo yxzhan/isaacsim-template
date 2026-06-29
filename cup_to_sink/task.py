@@ -46,8 +46,19 @@ class Task:
             [self._dof_name_to_idx[n] for n in finger_joint_names], dtype=int
         )
 
+        # Cache EE XFormPrim once — stage is already ready because env is fully
+        # initialised before __init__ is called (env_builder guarantees this).
+        from isaacsim.core.prims import SingleXFormPrim
+
+        ee_prim_path: str = (
+            f"{cfg['robot']['prim_path']}/{cfg['robot']['ee_frame']}"
+        )
+        self._ee_xform: SingleXFormPrim = SingleXFormPrim(ee_prim_path)
+
         # Persistent state set by reset(); initialised to None until first reset.
         self.sink_target_pose7d: np.ndarray | None = None
+        # Episode step counter: reset() sets this to 0; get_obs() returns the
+        # current value then increments it, so callers never need to pass a step.
         self._timestep: int = 0
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -109,16 +120,26 @@ class Task:
         # env_builder creates the sink as an Xform with a single
         # xformOp:translate op; we update it in-place to avoid touching
         # the xformOp:orient (which stays at identity — no rotation needed).
+        from pxr import UsdGeom
+
         sink_prim = env.stage.GetPrimAtPath(env.sink_path)
+        _sink_pos = Gf.Vec3d(
+            float(sink_target_pose7d[0]),
+            float(sink_target_pose7d[1]),
+            float(sink_target_pose7d[2]),
+        )
         sink_translate_attr = sink_prim.GetAttribute("xformOp:translate")
         if sink_translate_attr and sink_translate_attr.IsValid():
-            sink_translate_attr.Set(
-                Gf.Vec3d(
-                    float(sink_target_pose7d[0]),
-                    float(sink_target_pose7d[1]),
-                    float(sink_target_pose7d[2]),
+            sink_translate_attr.Set(_sink_pos)
+        else:
+            # Op absent — create it so randomisation is never silently skipped.
+            xformable = UsdGeom.Xformable(sink_prim)
+            translate_op = xformable.AddTranslateOp()
+            if translate_op is None:
+                raise RuntimeError(
+                    f"Sink target Xform at {env.sink_path} has no settable translate op"
                 )
-            )
+            translate_op.Set(_sink_pos)
 
         # ── 4. Set Franka to default qpos + open gripper ──────────────────────
         default_qpos: list[float] = list(rnd_cfg["robot_default_qpos"])  # 7 values
@@ -166,7 +187,7 @@ class Task:
     # Observation
     # ──────────────────────────────────────────────────────────────────────────
 
-    def get_obs(self, timestep: int = 0) -> dict:
+    def get_obs(self) -> dict:
         """Return the unified observation dict for the current simulation state.
 
         Schema:
@@ -183,10 +204,7 @@ class Task:
             sink_target_pose    np.ndarray (7,)   sampled sink target pose7d
             images              dict  name → {"rgb": uint8 (H,W,3), "depth": uint16 (H,W)}
             language_instruction str
-            timestep            int
-
-        Args:
-            timestep: step index (default 0; caller may pass episode timestep).
+            timestep            int               episode step from self._timestep counter
 
         Returns:
             Observation dict with the keys listed above.
@@ -194,7 +212,10 @@ class Task:
         from cup_to_sink.gripper import finger_joints_to_width, width_to_aperture
         from cup_to_sink.transforms import pose7d_to_6d, world_to_base
         from cup_to_sink.cameras import capture
-        from isaacsim.core.prims import SingleXFormPrim
+
+        # Capture current step index then advance the counter.
+        timestep: int = self._timestep
+        self._timestep += 1
 
         cfg = self.cfg
         env = self.env
@@ -214,12 +235,8 @@ class Task:
         gripper_aperture = width_to_aperture(gripper_width, open_w, closed_w)
 
         # ── EE pose (panda_hand in world frame) ───────────────────────────────
-        # ee_frame = "panda_hand"; full prim path = /World/Franka/panda_hand.
-        # SingleXFormPrim (inherits _SinglePrimWrapper) provides get_world_pose().
-        ee_frame: str = robot_cfg["ee_frame"]
-        ee_prim_path: str = f"{robot_cfg['prim_path']}/{ee_frame}"
-        ee_xform = SingleXFormPrim(ee_prim_path)
-        ee_pos, ee_ori = ee_xform.get_world_pose()  # ori is [w, x, y, z]
+        # Reuse the cached SingleXFormPrim created in __init__.
+        ee_pos, ee_ori = self._ee_xform.get_world_pose()  # ori is [w, x, y, z]
 
         ee_pose_7d_world = np.concatenate(
             [np.asarray(ee_pos, dtype=float), np.asarray(ee_ori, dtype=float)]
@@ -280,6 +297,9 @@ class Task:
             (success_bool, info_dict) — see ``cup_to_sink.success.check`` for
             info_dict keys.
         """
+        if self.sink_target_pose7d is None:
+            raise RuntimeError("call reset() before check_success()")
+
         from cup_to_sink import success
         from cup_to_sink.gripper import finger_joints_to_width
 
@@ -317,12 +337,7 @@ class Task:
 
     def ee_pose_world(self) -> np.ndarray:
         """Return panda_hand world pose as [x, y, z, qw, qx, qy, qz], shape (7,)."""
-        from isaacsim.core.prims import SingleXFormPrim
-
-        ee_frame: str = self.cfg["robot"]["ee_frame"]
-        ee_prim_path: str = f"{self.cfg['robot']['prim_path']}/{ee_frame}"
-        ee_xform = SingleXFormPrim(ee_prim_path)
-        ee_pos, ee_ori = ee_xform.get_world_pose()
+        ee_pos, ee_ori = self._ee_xform.get_world_pose()
         return np.concatenate(
             [np.asarray(ee_pos, dtype=float), np.asarray(ee_ori, dtype=float)]
         )
