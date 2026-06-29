@@ -187,3 +187,32 @@ def test_place_actor_no_mutation():
     target_copy = TARGET_POSE.copy()
     place_actor(None, TARGET_POSE, PRE_DIS, RETREAT_H)
     np.testing.assert_array_equal(TARGET_POSE, target_copy)
+
+
+def test_grasp_actor_pregrasp_direction():
+    """Verify pregrasp world direction: position must be along the approach axis.
+
+    Setup: identity quat, contact point at [0.045, 0, 0.08], so world contact at
+    [1.045, 2.0, 0.88]. With identity grasp orientation, approach axis is world +Z.
+    With pre_grasp_dis=0.12, pregrasp position should be [1.045, 2.0, 0.88 - 0.12]
+    = [1.045, 2.0, 0.76].
+    """
+    actor = CupActor(FakeCup(), CFG)
+    actions = grasp_actor(actor, pre_grasp_dis=0.12, grasp_dis=0.0,
+                          gripper_width_target=0.0, contact_point_id=0)
+
+    # Locate pregrasp and grasp actions by their phase field
+    pregrasp_action = None
+    grasp_action = None
+    for action in actions:
+        if action.get("phase") == "pregrasp" and action.get("type") == "move":
+            pregrasp_action = action
+        elif action.get("phase") == "grasp" and action.get("type") == "move":
+            grasp_action = action
+
+    assert pregrasp_action is not None, "No pregrasp move action found"
+    assert grasp_action is not None, "No grasp move action found"
+
+    # Verify pregrasp position: should be [1.045, 2.0, 0.76]
+    pregrasp_pos = pregrasp_action["ee_pose7d"][:3]
+    np.testing.assert_allclose(pregrasp_pos, np.array([1.045, 2.0, 0.76]), atol=1e-6)
