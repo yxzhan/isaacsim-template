@@ -27,6 +27,12 @@ scene:
   # randomization.cup_xlim/ylim are added as offsets to this point.
   cup_spawn_base_xy: [1.565, -0.390]
 
+  # Fixed cup spawn position used for env_builder (smoke test, single-episode
+  # builds).  Placed midway between Franka base (X=1.325) and basin centre
+  # (X=1.565), aligned on Y with both.  Well within Franka's ~0.85 m reach.
+  # Z is the counter-top surface; env_builder adjusts for the cup's bbox.
+  cup_spawn_position: [1.50, -0.390, 0.850]
+
   # Z height of the counter top surface (cup sits here before pickup).
   counter_top_z: 0.850
 
