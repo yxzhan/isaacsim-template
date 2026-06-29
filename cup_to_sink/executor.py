@@ -132,8 +132,21 @@ def execute(
     failed_phase: str | None = None
 
     # ── Per-step helper ───────────────────────────────────────────────────────
-    def _record_step(phase_str: str, arm_joint_targets: np.ndarray) -> None:
-        """Build one step dict and append to recorder."""
+    def _record_step(
+        phase_str: str,
+        arm_joint_targets: np.ndarray,
+        override_gripper_width_target: float | None = None,
+    ) -> None:
+        """Build one step dict and append to recorder.
+
+        When override_gripper_width_target is provided, the step's gripper
+        fields (gripper_width_target, gripper_joint_pos_target,
+        gripper_aperture_target, and the gripper slot of
+        policy_action_command / policy_action_ee_command) use the override
+        width instead of the running current_gripper_width_target.  Used by
+        the gripper interpolation loop so each sub-step reflects the
+        interpolated width rather than the pre-interpolation target.
+        """
         # Snapshot observations (increments task._timestep internally).
         obs = task.get_obs()
 
@@ -141,16 +154,23 @@ def execute(
         ee_target_7d = current_sparse_goal7d.copy()
         ee_target_6d = pose7d_to_6d(ee_target_7d)
 
+        # Effective gripper width for this step.
+        eff_gw = (
+            override_gripper_width_target
+            if override_gripper_width_target is not None
+            else current_gripper_width_target
+        )
+
         # Gripper targets.
-        gjp_target = width_to_finger_joints(current_gripper_width_target)
-        ga_target = width_to_aperture(current_gripper_width_target, open_w, closed_w)
+        gjp_target = width_to_finger_joints(eff_gw)
+        ga_target = width_to_aperture(eff_gw, open_w, closed_w)
 
         # Policy action vectors.
         policy_action_command = np.concatenate(
-            [arm_joint_targets.astype(np.float64), [float(current_gripper_width_target)]]
+            [arm_joint_targets.astype(np.float64), [float(eff_gw)]]
         )  # (8,)
         policy_action_ee_command = np.concatenate(
-            [current_goal_6d_base.astype(np.float64), [float(current_gripper_width_target)]]
+            [current_goal_6d_base.astype(np.float64), [float(eff_gw)]]
         )  # (7,)
 
         step: dict = {
@@ -161,7 +181,7 @@ def execute(
                 "ee_pose_target_6d":        ee_target_6d,
                 "delta_ee_pose_target_6d":  current_delta_6d_base.copy(),
                 "gripper_joint_pos_target": gjp_target,
-                "gripper_width_target":     float(current_gripper_width_target),
+                "gripper_width_target":     float(eff_gw),
                 "gripper_aperture_target":  float(ga_target),
                 "policy_action_command":    policy_action_command,
                 "policy_action_ee_command": policy_action_ee_command,
@@ -262,45 +282,7 @@ def execute(
                 # During gripper steps use current arm sensor positions as targets.
                 arm_targets = env.franka.get_joint_positions()[task.arm_idx].copy()
 
-                # Temporarily override the gripper width for this sub-step's record.
-                _prev_gw = current_gripper_width_target
-                # Update mutable state temporarily so _record_step sees the right width.
-                # We do this inline rather than patching the nonlocal so gripper
-                # interpolation target is reflected in the recorded action.
-                gjp_target_step = width_to_finger_joints(interp_width)
-                ga_target_step = width_to_aperture(interp_width, open_w, closed_w)
-
-                # Build the step dict inline to capture interp_width correctly.
-                obs = task.get_obs()
-                ee_target_7d = current_sparse_goal7d.copy()
-                ee_target_6d = pose7d_to_6d(ee_target_7d)
-                policy_action_command = np.concatenate(
-                    [arm_targets.astype(np.float64), [float(interp_width)]]
-                )
-                policy_action_ee_command = np.concatenate(
-                    [current_goal_6d_base.astype(np.float64), [float(interp_width)]]
-                )
-                step: dict = {
-                    **obs,
-                    "action": {
-                        "joint_pos_target":         arm_targets.copy().astype(np.float64),
-                        "ee_pose_target_7d":        ee_target_7d,
-                        "ee_pose_target_6d":        ee_target_6d,
-                        "delta_ee_pose_target_6d":  current_delta_6d_base.copy(),
-                        "gripper_joint_pos_target": gjp_target_step,
-                        "gripper_width_target":     float(interp_width),
-                        "gripper_aperture_target":  float(ga_target_step),
-                        "policy_action_command":    policy_action_command,
-                        "policy_action_ee_command": policy_action_ee_command,
-                    },
-                    "debug": {
-                        "sparse_ee_target_pose": current_sparse_goal7d.copy(),
-                        "grasp_pose_7d":         grasp_pose_7d.copy(),
-                        "pregrasp_pose_7d":      pregrasp_pose_7d.copy(),
-                    },
-                    "phase": _phase_to_int(a_phase),
-                }
-                recorder.append(step)
+                _record_step(a_phase, arm_targets, override_gripper_width_target=interp_width)
 
             current_gripper_width_target = target_width
 
