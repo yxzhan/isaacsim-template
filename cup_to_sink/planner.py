@@ -31,6 +31,9 @@ class Planner(ABC):
     def set_target(self, ee_pose7d_world: np.ndarray) -> None:
         """Set the EE target pose in WORLD frame.
 
+        The target orientation is interpreted in the planner's controlled
+        end-effector frame (Lula ``right_gripper`` for RMPFlowPlanner).
+
         Args:
             ee_pose7d_world: np.ndarray of shape (7,) = [x, y, z, qw, qx, qy, qz]
         """
@@ -58,15 +61,36 @@ class Planner(ABC):
     ) -> bool:
         """Check whether the EE has reached the stored target within tolerance.
 
+        IMPORTANT: ``current_ee_pose7d`` MUST be the end-effector pose in the
+        planner's controlled frame (Lula ``right_gripper`` for RMPFlowPlanner).
+        Obtain it from ``RMPFlowPlanner.get_ee_pose()``. Do NOT pass
+        ``franka.end_effector.get_world_pose()`` (which is in the
+        ``panda_rightfinger`` frame) — it is a different frame and will produce
+        silently-wrong results.
+
         Args:
             current_ee_pose7d: current EE pose [x, y, z, qw, qx, qy, qz] in
-                world frame.
+                the planner's controlled end-effector frame (e.g., Lula
+                ``right_gripper`` for RMPFlowPlanner).
             pos_tol: position tolerance in metres.
             rot_tol: rotation tolerance in radians (axis-angle magnitude of the
                 relative quaternion).
 
         Returns:
             True if position error < pos_tol AND rotation error < rot_tol.
+        """
+
+    @abstractmethod
+    def get_ee_pose(self) -> np.ndarray:
+        """Return the current end-effector pose in the planner's controlled frame.
+
+        This pose is used as the reference for ``reached()`` comparisons and must
+        be obtained from this method (not from other sources like
+        ``franka.end_effector.get_world_pose()`` which use different frames).
+
+        Returns:
+            np.ndarray of shape (7,) = [x, y, z, qw, qx, qy, qz] in the
+            planner's controlled end-effector frame.
         """
 
 
@@ -191,12 +215,19 @@ class RMPFlowPlanner(Planner):
     ) -> bool:
         """Return True if the EE has converged to the stored target.
 
+        IMPORTANT: ``current_ee_pose7d`` MUST be the end-effector pose in the
+        Lula ``right_gripper`` frame. Obtain it from ``self.get_ee_pose()``.
+        Do NOT pass ``franka.end_effector.get_world_pose()`` (``panda_rightfinger``
+        frame) — it is a different frame and will produce silently-wrong results.
+
         Position error: L2 distance between target and current XYZ.
         Rotation error: axis-angle magnitude of the relative quaternion
             ``target_q * conj(current_q)``.
 
         Args:
-            current_ee_pose7d: [x, y, z, qw, qx, qy, qz] world frame.
+            current_ee_pose7d: [x, y, z, qw, qx, qy, qz] in the Lula
+                ``right_gripper`` end-effector frame. Obtain from
+                ``self.get_ee_pose()``.
             pos_tol: position tolerance in metres.
             rot_tol: rotation tolerance in radians.
 
