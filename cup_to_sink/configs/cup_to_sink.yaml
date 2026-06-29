@@ -10,10 +10,36 @@ scene:
   cup_prim_path: "/World/Objects/Cup"
   sink_target_prim_path: "/World/Kitchen/Sink/PlacePoint"
 
+  # ── Calibrated 2026-06-29 via cup_to_sink/inspect_scene.py ──────────────────
+  # sink_area AABB (world space, meters):
+  #   min=(1.2750, -0.7300, 0.0000)  max=(1.8550, 1.3300, 0.8500)
+  # Basin region inferred at Y ∈ [-0.730, -0.050] — the Y band before the
+  # dishwasher (Y=-0.050 to 0.450) and left drawers (Y=0.503 to 1.297).
+  # sink_area_surface/visuals had an unresolved reference (kitchen_physics.usd
+  # not linked), so no separate basin prim AABB was available; basin bounds are
+  # structurally inferred from surrounding prims.
+  # Counter top Z = 0.850 m.  Basin interior estimated ≈ 0.70 m (15 cm recess).
+  #
+  # Format: [x, y, z, qw, qx, qy, qz]  (world frame, meters / unit quat)
+  sink_target_pose_world: [1.565, -0.390, 0.700, 1.0, 0.0, 0.0, 0.0]
+
+  # Cup spawn base XY: center of basin on counter top surface.
+  # randomization.cup_xlim/ylim are added as offsets to this point.
+  cup_spawn_base_xy: [1.565, -0.390]
+
+  # Z height of the counter top surface (cup sits here before pickup).
+  counter_top_z: 0.850
+
 robot:
   name: franka_panda
   prim_path: "/World/Franka"
-  base_position: [0.0, 0.0, 0.0]
+  # Calibrated base position: front edge of sink counter, counter-top height,
+  # Y-aligned with basin centre.  Counter front face X=1.275; base placed 5 cm
+  # inside (X=1.325) so it sits on the counter surface.  Z=0.850 = counter top.
+  # Franka reach ≈ 0.85 m.  Distances from here:
+  #   → sink target (1.565, -0.390, 0.700): ~0.28 m  ✓
+  #   → nearest cup (1.565±0.10, -0.390±0.15, 0.850): max ~0.37 m  ✓
+  base_position: [1.325, -0.390, 0.850]
   base_quat: [1.0, 0.0, 0.0, 0.0]
   ee_frame: "panda_hand"
   arm_joint_names:
@@ -36,8 +62,13 @@ robot:
 
 randomization:
   seed: ${episode_seed}
-  cup_xlim: [0.0, 0.1]
-  cup_ylim: [0.0, 0.1]
+  # Cup spawn offsets from scene.cup_spawn_base_xy = (1.565, -0.390).
+  # These keep the cup on the counter surface around the basin rim:
+  #   X ∈ [1.465, 1.665]  (within counter X range 1.275–1.855)
+  #   Y ∈ [-0.540, -0.240] (within basin Y range -0.730 to -0.050)
+  # All spawned positions are within 0.37 m of the Franka base → well in reach.
+  cup_xlim: [-0.10, 0.10]
+  cup_ylim: [-0.15, 0.15]
   cup_yaw_range: [-3.14, 3.14]
   cup_z_offset_range: [0.0, 0.0]
   sink_target_sample_xy: true
