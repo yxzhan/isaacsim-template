@@ -1,0 +1,129 @@
+task:
+  name: cup_to_sink
+  instruction: "put the cup into the sink"
+  num_success: 50
+  max_attempts: 500
+
+scene:
+  lab_usd_path: "usd/kitchen/kitchen.usd"
+  cup_usd_path: "usd/other/Cup.usd"
+  cup_prim_path: "/World/Objects/Cup"
+  sink_target_prim_path: "/World/Kitchen/Sink/PlacePoint"
+
+robot:
+  name: franka_panda
+  prim_path: "/World/Franka"
+  base_position: [0.0, 0.0, 0.0]
+  base_quat: [1.0, 0.0, 0.0, 0.0]
+  ee_frame: "panda_hand"
+  arm_joint_names:
+    - panda_joint1
+    - panda_joint2
+    - panda_joint3
+    - panda_joint4
+    - panda_joint5
+    - panda_joint6
+    - panda_joint7
+  gripper_joint_names:
+    - panda_finger_joint1
+    - panda_finger_joint2
+  finger_joint_open: 0.04
+  finger_joint_closed: 0.0
+  gripper_open_width: 0.08
+  gripper_closed_width: 0.0
+  policy_gripper_action: "width"
+  curobo_robot_cfg: "/path/to/franka.yml"
+
+randomization:
+  seed: ${episode_seed}
+  cup_xlim: [0.0, 0.1]
+  cup_ylim: [0.0, 0.1]
+  cup_yaw_range: [-3.14, 3.14]
+  cup_z_offset_range: [0.0, 0.0]
+  sink_target_sample_xy: true
+  sink_target_xlim: [-0.02, 0.02]
+  sink_target_ylim: [-0.02, 0.02]
+  robot_initial_qpos_mode: "default"
+  robot_default_qpos: [0.0, -0.4, 0.0, -2.2, 0.0, 2.0, 0.8]
+  settle_steps: 100
+  camera_pose_jitter: false
+  camera_position_noise: 0.0
+  camera_rotation_noise_deg: 0.0
+  lighting_jitter: false
+
+grasp:
+  contact_point_selection: "best_feasible"  # "fixed", "seed_random", "best_feasible", "seed_random_feasible"
+  fixed_contact_point_id: 0
+  candidate_contact_point_ids: [0]
+  record_selected_contact_point: true
+
+cup:
+  contact_points:
+    - name: side_grasp
+      position_obj: [0.045, 0.0, 0.08]
+      quat_obj: [1.0, 0.0, 0.0, 0.0]
+      pregrasp_distance: 0.10
+  functional_points:
+    - name: cup_center
+      position_obj: [0.0, 0.0, 0.0]
+      quat_obj: [1.0, 0.0, 0.0, 0.0]
+
+motion:
+  lift_height: 0.10
+  preplace_distance: 0.06
+  retreat_height: 0.08
+  gripper_steps: 200
+
+success:
+  xy_threshold: 0.06
+  z_min_offset: -0.03
+  z_max_offset: 0.15
+
+dataset:
+  output_dir: "datasets/cup_to_sink"
+  enabled_cameras: ["front", "left", "right", "wrist"]
+  save_rgb: true
+  save_depth: true
+  image_width: 256
+  image_height: 256
+  depth_format: "uint16_mm"
+  compression: "gzip"
+
+cameras:
+  front:
+    prim_path: "/World/Cameras/front"
+    position: [0.0, -1.5, 1.2]
+    quat: [1.0, 0.0, 0.0, 0.0]
+    width: 256
+    height: 256
+    fov: 60.0
+    save_rgb: true
+    save_depth: true
+  left:
+    prim_path: "/World/Cameras/left"
+    position: [-1.2, 0.0, 1.1]
+    quat: [1.0, 0.0, 0.0, 0.0]
+    width: 256
+    height: 256
+    fov: 60.0
+    save_rgb: true
+    save_depth: true
+  right:
+    prim_path: "/World/Cameras/right"
+    position: [1.2, 0.0, 1.1]
+    quat: [1.0, 0.0, 0.0, 0.0]
+    width: 256
+    height: 256
+    fov: 60.0
+    save_rgb: true
+    save_depth: true
+  wrist:
+    prim_path: "/World/Franka/panda_hand/wrist_camera"
+    parent_prim_path: "/World/Franka/panda_hand"
+    position: [0.0, 0.0, 0.05]
+    quat: [1.0, 0.0, 0.0, 0.0]
+    width: 256
+    height: 256
+    fov: 70.0
+    save_rgb: true
+    save_depth: true
