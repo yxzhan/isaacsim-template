@@ -27,6 +27,7 @@ Conventions:
 
 from __future__ import annotations
 
+import json
 import numpy as np
 import h5py
 
@@ -265,7 +266,7 @@ def _write_meta(m: h5py.Group, meta: dict, gz: dict) -> None:
     for key in ("joint_names", "gripper_joint_names", "enabled_cameras"):
         lst = meta.get(key)
         if lst is not None:
-            m.create_dataset(key, data=np.array([s.encode() for s in lst]))
+            m.create_dataset(key, data=np.array([s.encode() for s in lst]), **gz)
 
     # ---- /meta/randomization ----
     rnd = meta.get("randomization", {})
@@ -286,9 +287,12 @@ def _write_meta(m: h5py.Group, meta: dict, gz: dict) -> None:
         elif isinstance(v, np.ndarray):
             rnd_grp.create_dataset(k, data=v, **gz)
         elif isinstance(v, (list, tuple)):
-            rnd_grp.create_dataset(k, data=np.asarray(v))
+            rnd_grp.create_dataset(k, data=np.asarray(v), **gz)
         else:
-            try:
-                rnd_grp.create_dataset(k, data=v)
-            except Exception:
-                pass
+            if isinstance(v, dict):
+                rnd_grp.create_dataset(k, data=np.bytes_(json.dumps(v)))
+            else:
+                try:
+                    rnd_grp.create_dataset(k, data=np.asarray(v), **gz)
+                except Exception:
+                    rnd_grp.create_dataset(k, data=np.bytes_(str(v)))

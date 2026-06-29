@@ -4,7 +4,7 @@ from cup_to_sink.dataset_writer import Recorder
 def _step(i):
     img={"front":{"rgb":np.zeros((4,4,3),np.uint8),"depth":np.full((4,4),1000,np.uint16)}}
     return dict(joint_pos=np.zeros(7),joint_vel=np.zeros(7),gripper_joint_pos=np.array([0.04,0.04]),
-        gripper_width=0.08,gripper_aperture=1.0,ee_pose_7d_world=np.array([0.,0,0,1,0,0,0]),
+        gripper_width=0.08,gripper_aperture=1.0,ee_pose_7d_world=np.array([0.1,0.2,0.3,1.,0,0,0]),
         ee_pose_6d_world=np.zeros(6),ee_pose_7d_base=np.array([0.,0,0,1,0,0,0]),ee_pose_6d_base=np.zeros(6),
         cup_pose=np.array([1.,0,0,1,0,0,0]),sink_target_pose=np.array([1.,1,0,1,0,0,0]),images=img,
         action=dict(joint_pos_target=np.zeros(7),ee_pose_target_7d=np.array([0.,0,0,1,0,0,0]),
@@ -29,3 +29,6 @@ def test_write_roundtrip():
         assert f["/meta/seed"][()]==5
         assert f["/meta/randomization/seed"][()]==5
         assert f.attrs.get("schema_version") is not None or "/meta/task_name" in f
+        np.testing.assert_allclose(f["/observations/ee_pose_7d_world"][0][:3], [0.1,0.2,0.3])
+        np.testing.assert_allclose(f["/observations/ee_pose_7d"][0][:3], [0.,0,0])
+        assert f["/actions/policy_action_ee_next_state"].shape == (3,7)
