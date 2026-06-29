@@ -40,3 +40,49 @@ def test_world_to_base_translation():
 def test_invert_T():
     A = T.make_T(np.array([1.,2,3]), T.axis_angle_to_quat(np.array([0.1,0.2,0.3])))
     np.testing.assert_allclose(T.compose(A, T.invert_T(A)), np.eye(4), atol=1e-6)
+
+def test_quat_mul_ijk():
+    """Test quaternion multiplication: i * j = k."""
+    i = np.array([0, 1, 0, 0])
+    j = np.array([0, 0, 1, 0])
+    k = np.array([0, 0, 0, 1])
+    result = T.quat_mul(i, j)
+    np.testing.assert_allclose(result, k, atol=1e-6)
+
+def test_quat_conj():
+    """Test quaternion conjugation."""
+    q = np.array([0.5, 0.5, 0.5, 0.5])
+    expected = np.array([0.5, -0.5, -0.5, -0.5])
+    result = T.quat_conj(q)
+    np.testing.assert_allclose(result, expected, atol=1e-6)
+
+def test_quat_rotate_90z():
+    """Test rotating vector [1,0,0] by +90° rotation about +Z."""
+    # Quaternion for +90° rotation about Z: [cos(π/4), 0, 0, sin(π/4)]
+    q = np.array([np.cos(np.pi/4), 0, 0, np.sin(np.pi/4)])
+    v = np.array([1, 0, 0])
+    expected = np.array([0, 1, 0])
+    result = T.quat_rotate(q, v)
+    np.testing.assert_allclose(result, expected, atol=1e-6)
+
+def test_world_to_base_rotated():
+    """Test world_to_base with rotated base frame.
+
+    Base frame at position [1,0,0] rotated +90° about +Z.
+    World point at [1,1,0] with identity orientation.
+    In base frame, position should be approximately [1,0,0].
+    """
+    # Base at [1,0,0] with +90° rotation about Z
+    base_pos = np.array([1., 0, 0])
+    base_quat = np.array([np.cos(np.pi/4), 0, 0, np.sin(np.pi/4)])
+    base = np.concatenate([base_pos, base_quat])
+
+    # World point at [1,1,0] with identity orientation
+    world_point = np.array([1., 1, 0, 1, 0, 0, 0])
+
+    # Transform to base frame
+    result = T.world_to_base(world_point, base)
+
+    # Check position only (first 3 elements)
+    expected_pos = np.array([1, 0, 0])
+    np.testing.assert_allclose(result[:3], expected_pos, atol=1e-6)
