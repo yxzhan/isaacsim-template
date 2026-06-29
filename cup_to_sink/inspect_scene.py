@@ -31,6 +31,14 @@ PATTERN = re.compile(
 
 
 def main() -> None:
+    # Force line-buffered stdout so summary sections are not lost when Isaac Sim
+    # terminates the process before the OS pipe buffer is flushed.
+    import io
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except (AttributeError, io.UnsupportedOperation):
+        pass
+
     # --- 1. Start Isaac Sim ---
     from cup_to_sink.sim_app import start
     simulation_app = start(headless=True)
@@ -70,59 +78,63 @@ def main() -> None:
         useExtentsHint=True,
     )
 
-    print("\n" + "=" * 72)
-    print("PRIM BOUNDING BOXES  (world space, meters)")
-    print("=" * 72)
+    print("\n" + "=" * 72, flush=True)
+    print("PRIM BOUNDING BOXES  (world space, meters)", flush=True)
+    print("=" * 72, flush=True)
 
     matched_prims = []
 
-    for prim in stage.Traverse():
-        path_str = str(prim.GetPath())
-        name_str = prim.GetName()
+    try:
+        for prim in stage.Traverse():
+            path_str = str(prim.GetPath())
+            name_str = prim.GetName()
 
-        if not PATTERN.search(path_str) and not PATTERN.search(name_str):
-            continue
-
-        try:
-            bbox = bbox_cache.ComputeWorldBound(prim)
-            aligned = bbox.ComputeAlignedRange()
-            mn = aligned.GetMin()
-            mx = aligned.GetMax()
-
-            # Skip degenerate / uncomputed boxes
-            if mn == mx or (mx[0] - mn[0] < 1e-6 and mx[1] - mn[1] < 1e-6 and mx[2] - mn[2] < 1e-6):
+            if not PATTERN.search(path_str) and not PATTERN.search(name_str):
                 continue
 
-            center = (
-                (mn[0] + mx[0]) / 2,
-                (mn[1] + mx[1]) / 2,
-                (mn[2] + mx[2]) / 2,
-            )
-            size = (mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2])
+            try:
+                bbox = bbox_cache.ComputeWorldBound(prim)
+                aligned = bbox.ComputeAlignedRange()
+                mn = aligned.GetMin()
+                mx = aligned.GetMax()
 
-            print(f"\nPRIM  : {path_str}")
-            print(f"  type  : {prim.GetTypeName()}")
-            print(f"  min   : ({mn[0]:.4f}, {mn[1]:.4f}, {mn[2]:.4f})")
-            print(f"  max   : ({mx[0]:.4f}, {mx[1]:.4f}, {mx[2]:.4f})")
-            print(f"  center: ({center[0]:.4f}, {center[1]:.4f}, {center[2]:.4f})")
-            print(f"  size  : ({size[0]:.4f}, {size[1]:.4f}, {size[2]:.4f})")
+                # Skip degenerate / uncomputed boxes
+                if mn == mx or (mx[0] - mn[0] < 1e-6 and mx[1] - mn[1] < 1e-6 and mx[2] - mn[2] < 1e-6):
+                    continue
 
-            matched_prims.append({
-                "path": path_str,
-                "type": prim.GetTypeName(),
-                "min": mn,
-                "max": mx,
-                "center": center,
-                "size": size,
-            })
-        except Exception as exc:
-            print(f"  [warn] {path_str}: {exc}")
+                center = (
+                    (mn[0] + mx[0]) / 2,
+                    (mn[1] + mx[1]) / 2,
+                    (mn[2] + mx[2]) / 2,
+                )
+                size = (mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2])
+
+                print(f"\nPRIM  : {path_str}")
+                print(f"  type  : {prim.GetTypeName()}")
+                print(f"  min   : ({mn[0]:.4f}, {mn[1]:.4f}, {mn[2]:.4f})")
+                print(f"  max   : ({mx[0]:.4f}, {mx[1]:.4f}, {mx[2]:.4f})")
+                print(f"  center: ({center[0]:.4f}, {center[1]:.4f}, {center[2]:.4f})")
+                print(f"  size  : ({size[0]:.4f}, {size[1]:.4f}, {size[2]:.4f})")
+
+                matched_prims.append({
+                    "path": path_str,
+                    "type": prim.GetTypeName(),
+                    "min": mn,
+                    "max": mx,
+                    "center": center,
+                    "size": size,
+                })
+            except BaseException as exc:
+                print(f"  [warn] {path_str}: {exc}")
+    except BaseException as exc:
+        print(f"\n[warn] stage.Traverse() aborted early: {exc}  — proceeding to summary sections")
 
     # --- 4. Overall kitchen AABB ---
-    print("\n" + "=" * 72)
-    print("OVERALL KITCHEN AABB")
-    print("=" * 72)
+    print("\n" + "=" * 72, flush=True)
+    print("OVERALL KITCHEN AABB", flush=True)
+    print("=" * 72, flush=True)
     kitchen_prim_obj = stage.GetPrimAtPath("/World/Kitchen")
+    kmn = kmx = kc = None
     try:
         kb = bbox_cache.ComputeWorldBound(kitchen_prim_obj)
         kar = kb.ComputeAlignedRange()
@@ -131,14 +143,13 @@ def main() -> None:
         print(f"  min   : ({kmn[0]:.4f}, {kmn[1]:.4f}, {kmn[2]:.4f})")
         print(f"  max   : ({kmx[0]:.4f}, {kmx[1]:.4f}, {kmx[2]:.4f})")
         print(f"  center: ({kc[0]:.4f}, {kc[1]:.4f}, {kc[2]:.4f})")
-    except Exception as exc:
+    except BaseException as exc:
         print(f"  [warn] {exc}")
-        kmn = kmx = kc = None
 
     # --- 5. Ground z ---
-    print("\n" + "=" * 72)
-    print("GROUND PLANE")
-    print("=" * 72)
+    print("\n" + "=" * 72, flush=True)
+    print("GROUND PLANE", flush=True)
+    print("=" * 72, flush=True)
     ground_prim_obj = stage.GetPrimAtPath("/World/Ground")
     ground_z = 0.0
     try:
@@ -149,91 +160,93 @@ def main() -> None:
         print(f"  min   : ({gmn[0]:.4f}, {gmn[1]:.4f}, {gmn[2]:.4f})")
         print(f"  max   : ({gmx[0]:.4f}, {gmx[1]:.4f}, {gmx[2]:.4f})")
         print(f"  ground top z = {ground_z:.4f}")
-    except Exception as exc:
+    except BaseException as exc:
         print(f"  [warn] {exc}")
 
     # --- 6. Compute suggested config values ---
-    print("\n" + "=" * 72)
-    print("SUGGESTED CONFIG VALUES")
-    print("=" * 72)
+    print("\n" + "=" * 72, flush=True)
+    print("SUGGESTED CONFIG VALUES", flush=True)
+    print("=" * 72, flush=True)
 
-    # Find best sink/basin prim (prefer path containing 'sink' or 'basin')
-    sink_prims = [p for p in matched_prims
-                  if re.search(r"sink|basin", p["path"], re.IGNORECASE)]
-    counter_prims = [p for p in matched_prims
-                     if re.search(r"counter|worktop|island|table|stove|top", p["path"], re.IGNORECASE)]
+    try:
+        # Find best sink/basin prim (prefer path containing 'sink' or 'basin')
+        sink_prims = [p for p in matched_prims
+                      if re.search(r"sink|basin", p["path"], re.IGNORECASE)]
+        counter_prims = [p for p in matched_prims
+                         if re.search(r"counter|worktop|island|table|stove|top", p["path"], re.IGNORECASE)]
 
-    chosen_sink = None
-    chosen_counter = None
+        chosen_sink = None
+        chosen_counter = None
 
-    if sink_prims:
-        # Pick the prim with the smallest horizontal footprint (likely the actual basin)
-        sink_prims_sorted = sorted(sink_prims,
-                                   key=lambda p: p["size"][0] * p["size"][1])
-        chosen_sink = sink_prims_sorted[0]
-        print(f"\n  [sink] best match: {chosen_sink['path']}")
-        # Target: center of basin top surface
-        sx = chosen_sink["center"][0]
-        sy = chosen_sink["center"][1]
-        sz = chosen_sink["max"][2] - 0.05  # slightly below basin rim
-        print(f"  sink_target_pose_world  = [{sx:.4f}, {sy:.4f}, {sz:.4f}]")
-    elif counter_prims:
-        chosen_counter = sorted(counter_prims,
-                                key=lambda p: p["size"][0] * p["size"][1],
-                                reverse=True)[0]
-        sx = chosen_counter["center"][0]
-        sy = chosen_counter["center"][1]
-        sz = chosen_counter["max"][2] + 0.02  # on top of counter
-        print(f"\n  [NO SINK FOUND] using counter: {chosen_counter['path']}")
-        print(f"  sink_target_pose_world  = [{sx:.4f}, {sy:.4f}, {sz:.4f}]")
-    else:
-        # Fall back to kitchen center
-        if kc:
-            sx, sy = kc[0], kc[1]
-            sz = (kmx[2] + kc[2]) / 2 if kmx else 0.9
+        if sink_prims:
+            # Pick the prim with the largest volume (the enclosing sink_area prim)
+            sink_prims_sorted = sorted(sink_prims,
+                                       key=lambda p: p["size"][0] * p["size"][1] * p["size"][2],
+                                       reverse=True)
+            chosen_sink = sink_prims_sorted[0]
+            print(f"\n  [sink] best match: {chosen_sink['path']}")
+            # Target: center of basin top surface
+            sx = chosen_sink["center"][0]
+            sy = chosen_sink["center"][1]
+            sz = chosen_sink["max"][2] - 0.05  # slightly below basin rim
+            print(f"  sink_target_pose_world  = [{sx:.4f}, {sy:.4f}, {sz:.4f}]")
+        elif counter_prims:
+            chosen_counter = sorted(counter_prims,
+                                    key=lambda p: p["size"][0] * p["size"][1],
+                                    reverse=True)[0]
+            sx = chosen_counter["center"][0]
+            sy = chosen_counter["center"][1]
+            sz = chosen_counter["max"][2] + 0.02  # on top of counter
+            print(f"\n  [NO SINK FOUND] using counter: {chosen_counter['path']}")
+            print(f"  sink_target_pose_world  = [{sx:.4f}, {sy:.4f}, {sz:.4f}]")
         else:
-            sx, sy, sz = 0.0, 0.0, 0.9
-        print(f"\n  [NO SINK/COUNTER FOUND] falling back to kitchen center")
-        print(f"  sink_target_pose_world  = [{sx:.4f}, {sy:.4f}, {sz:.4f}]")
+            # Fall back to kitchen center
+            if kc:
+                sx, sy = kc[0], kc[1]
+                sz = (kmx[2] + kc[2]) / 2 if kmx else 0.9
+            else:
+                sx, sy, sz = 0.0, 0.0, 0.9
+            print(f"\n  [NO SINK/COUNTER FOUND] falling back to kitchen center")
+            print(f"  sink_target_pose_world  = [{sx:.4f}, {sy:.4f}, {sz:.4f}]")
 
-    # Franka base: ~0.55 m in front of (toward -Y) sink at counter-base height
-    # "In front" is assumed to be -Y direction (robot faces +Y)
-    counter_top_z = sz - 0.02  # approximate counter/surface top z
-    if chosen_sink:
-        ref_z = chosen_sink["min"][2]          # base of sink == approximate counter top
-    elif chosen_counter:
-        ref_z = chosen_counter["max"][2]       # top of counter surface
-    else:
-        ref_z = ground_z
+        # Franka base: ~0.55 m in front of (toward -Y) sink at counter-base height
+        # "In front" is assumed to be -Y direction (robot faces +Y)
+        if chosen_sink:
+            ref_z = chosen_sink["min"][2]          # base of sink == approximate counter top
+        elif chosen_counter:
+            ref_z = chosen_counter["max"][2]       # top of counter surface
+        else:
+            ref_z = ground_z
 
-    franka_base_y = sy - 0.55  # 0.55 m closer to robot on Y axis
-    franka_base = [round(sx, 4), round(franka_base_y, 4), round(ref_z, 4)]
-    print(f"\n  robot.base_position = {franka_base}")
-    print(f"  (Franka placed {0.55:.2f} m from sink/target along -Y, base z={ref_z:.4f})")
+        franka_base_y = sy - 0.55  # 0.55 m closer to robot on Y axis
+        franka_base = [round(sx, 4), round(franka_base_y, 4), round(ref_z, 4)]
+        print(f"\n  robot.base_position = {franka_base}")
+        print(f"  (Franka placed {0.55:.2f} m from sink/target along -Y, base z={ref_z:.4f})")
 
-    # Cup spawn: small patch on counter between Franka and sink (~0.3-0.5 m from Franka)
-    # cup_xlim / cup_ylim are offsets added to a cup base xy.
-    # Base xy for cup spawn = Franka base xy offset by +0.35..+0.45 in +Y
-    cup_base_x = franka_base[0]
-    cup_base_y = franka_base[1] + 0.40  # 0.4 m in front of Franka toward sink
-    cup_z = ref_z  # cup sits on the counter
+        # Cup spawn: small patch on counter between Franka and sink (~0.3-0.5 m from Franka)
+        # cup_xlim / cup_ylim are offsets added to a cup base xy.
+        # Base xy for cup spawn = Franka base xy offset by +0.35..+0.45 in +Y
+        cup_base_x = franka_base[0]
+        cup_base_y = franka_base[1] + 0.40  # 0.4 m in front of Franka toward sink
+        cup_z = ref_z  # cup sits on the counter
 
-    print(f"\n  cup spawn base xy (world) = [{cup_base_x:.4f}, {cup_base_y:.4f}]")
-    print(f"  cup_xlim (offsets from base_x) = [-0.10, 0.10]  # ±0.1 m along X")
-    print(f"  cup_ylim (offsets from base_y) = [-0.05, 0.05]  # ±0.05 m along Y")
-    print(f"  counter_top_z = {cup_z:.4f}  # cup spawn z")
+        print(f"\n  cup spawn base xy (world) = [{cup_base_x:.4f}, {cup_base_y:.4f}]")
+        print(f"  cup_xlim (offsets from base_x) = [-0.10, 0.10]  # ±0.1 m along X")
+        print(f"  cup_ylim (offsets from base_y) = [-0.05, 0.05]  # ±0.05 m along Y")
+        print(f"  counter_top_z = {cup_z:.4f}  # cup spawn z")
 
-    # Reachability check: Franka reach ~0.85 m
-    dist_to_sink = ((sx - cup_base_x)**2 + (sy - franka_base[1] - 0.40)**2)**0.5
-    dist_franka_to_sink = ((sx - franka_base[0])**2 + (sy - franka_base[1])**2)**0.5
-    dist_franka_to_cup  = 0.40  # by construction
-    print(f"\n  Reachability check (Franka reach ~0.85 m):")
-    print(f"    Franka-to-sink distance = {dist_franka_to_sink:.3f} m  {'OK' if dist_franka_to_sink < 0.85 else 'TOO FAR'}")
-    print(f"    Franka-to-cup distance  = {dist_franka_to_cup:.3f} m  {'OK' if dist_franka_to_cup < 0.85 else 'TOO FAR'}")
+        # Reachability check: Franka reach ~0.85 m
+        dist_franka_to_sink = ((sx - franka_base[0])**2 + (sy - franka_base[1])**2)**0.5
+        dist_franka_to_cup  = 0.40  # by construction
+        print(f"\n  Reachability check (Franka reach ~0.85 m):")
+        print(f"    Franka-to-sink distance = {dist_franka_to_sink:.3f} m  {'OK' if dist_franka_to_sink < 0.85 else 'TOO FAR'}")
+        print(f"    Franka-to-cup distance  = {dist_franka_to_cup:.3f} m  {'OK' if dist_franka_to_cup < 0.85 else 'TOO FAR'}")
+    except BaseException as exc:
+        print(f"  [warn] SUGGESTED CONFIG section failed: {exc}")
 
-    print("\n" + "=" * 72)
-    print("INSPECT DONE")
-    print("=" * 72)
+    print("\n" + "=" * 72, flush=True)
+    print("INSPECT DONE", flush=True)
+    print("=" * 72, flush=True)
 
     simulation_app.close()
 
