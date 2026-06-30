@@ -1,4 +1,4 @@
-"""Tests for cup_to_sink.skills — pure numpy, no Isaac Sim."""
+"""Tests for cup_to_sink.skills -- pure numpy, no Isaac Sim."""
 
 import numpy as np
 import pytest

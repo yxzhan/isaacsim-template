@@ -1,6 +1,6 @@
 """HDF5 dataset writer for cup_to_sink task demonstrations.
 
-Implements the full plan §7 HDF5 layout:
+Implements the full plan sec7 HDF5 layout:
   /observations/{joint_pos, joint_vel, gripper_joint_pos, gripper_width,
                  gripper_aperture, ee_pose_7d, ee_pose_6d, ee_pose_7d_world,
                  ee_pose_6d_world, cup_pose, sink_target_pose}
@@ -69,7 +69,7 @@ class Recorder:
         self._steps.append(step)
 
     def write(self, path: str, meta: dict) -> None:
-        """Stack buffered steps and write the full §7 HDF5 layout.
+        """Stack buffered steps and write the full sec7 HDF5 layout.
 
         Args:
             path: Output .hdf5 file path.
@@ -78,7 +78,7 @@ class Recorder:
                   task_name*, language_instruction*, seed*, success*,
                   enabled_cameras, joint_names, config_yaml,
                   randomization (sub-dict),
-                  + all optional §7 /meta/* fields.
+                  + all optional sec7 /meta/* fields.
         """
         if not self._steps:
             raise ValueError("Recorder has no steps to write.")

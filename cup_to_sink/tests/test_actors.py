@@ -18,9 +18,9 @@ def test_pregrasp_distance():
 
 
 class FakeCupRotated:
-    """Cup at [1, 2, 0.8] rotated 90° about +Z axis."""
+    """Cup at [1, 2, 0.8] rotated 90deg about +Z axis."""
     def get_world_pose(self):
-        # 90° about Z: quat = [cos(pi/4), 0, 0, sin(pi/4)]
+        # 90deg about Z: quat = [cos(pi/4), 0, 0, sin(pi/4)]
         return (np.array([1.,2.,0.8]), np.array([np.cos(np.pi/4), 0., 0., np.sin(np.pi/4)]))
 
 CFG_ROTATED = {
@@ -40,7 +40,7 @@ CFG_ROTATED = {
 def test_contact_point_world_rotated():
     """Verify composition order is T_world_cup @ T_cup_contact (not reversed).
 
-    A 90° rotation about Z maps the object-frame offset [0.045, 0, 0.08]
+    A 90deg rotation about Z maps the object-frame offset [0.045, 0, 0.08]
     to world offset [0, 0.045, 0.08], so the expected world contact position
     is [1.0 + 0.0, 2.0 + 0.045, 0.8 + 0.08] = [1.0, 2.045, 0.88].
     """

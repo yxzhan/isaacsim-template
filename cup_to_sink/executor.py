@@ -1,5 +1,5 @@
 """
-executor.py — Consume a skill action list, drive RMPFlow, and record every step.
+executor.py -- Consume a skill action list, drive RMPFlow, and record every step.
 
 Public API:
     execute(env, task, planner, actions, recorder, cfg, grasp_debug=None) -> dict
@@ -14,7 +14,7 @@ Step recording contract (matches dataset_writer.Recorder.append):
     phase: int (see _PHASE_CODES).
 
 Frame contract:
-    planner.get_ee_pose() returns Lula right_gripper world pose — used for
+    planner.get_ee_pose() returns Lula right_gripper world pose -- used for
     reached() checks.  task.get_obs() ee_pose_* uses panda_hand frame.
     Both are recorded; the distinction only matters for convergence checks.
 """
@@ -24,7 +24,7 @@ from typing import Any
 
 import numpy as np
 
-# ── Phase string → integer code ───────────────────────────────────────────────
+# -- Phase string -> integer code -----------------------------------------------
 # dataset_writer.Recorder stacks phase as int(s["phase"]) so we must encode.
 _PHASE_CODES: dict[str, int] = {
     "pregrasp":    0,
@@ -64,7 +64,7 @@ def execute(
         actions: Ordered list of action dicts from skills.*:
             {"type":"move",    "ee_pose7d": np.ndarray(7), "phase": str}
             {"type":"gripper", "width": float,              "phase": str}
-        recorder: Recorder instance — .append(step) is called once per step.
+        recorder: Recorder instance -- .append(step) is called once per step.
         cfg: Config dict (uses cfg["planner"] and cfg["motion"] sub-dicts).
         grasp_debug: Optional dict with "grasp_pose_7d" and "pregrasp_pose_7d"
             (np.ndarray, shape (7,)) for the /debug HDF5 group.  Pass None to
@@ -72,19 +72,19 @@ def execute(
 
     Returns:
         dict:
-            "completed" bool   — False if any move action hit max_move_steps
+            "completed" bool   -- False if any move action hit max_move_steps
                                  without reaching the goal.
-            "steps"     int    — total steps recorded (recorder.num_steps).
-            "failed_phase" str — only present when completed=False; the phase
+            "steps"     int    -- total steps recorded (recorder.num_steps).
+            "failed_phase" str -- only present when completed=False; the phase
                                  label of the first timed-out move.
     """
-    # Deferred Isaac Sim import — only available after SimulationApp is running.
+    # Deferred Isaac Sim import -- only available after SimulationApp is running.
     from isaacsim.core.utils.types import ArticulationAction
 
     from cup_to_sink.gripper import width_to_finger_joints, width_to_aperture
     from cup_to_sink.transforms import pose7d_to_6d, world_to_base
 
-    # ── Config ────────────────────────────────────────────────────────────────
+    # -- Config ----------------------------------------------------------------
     planner_cfg: dict = cfg.get("planner", {})
     max_move_steps: int = int(planner_cfg.get("max_move_steps", 600))
     pos_tol: float = float(planner_cfg.get("pos_tol", 0.02))
@@ -93,14 +93,14 @@ def execute(
     # Decimation: physics steps every tick (motion needs it), but cameras are
     # rendered and a step is recorded only every record_every ticks.  Recording
     # every 200 Hz physics step buffers 4x RGB-D per step in RAM and OOMs the
-    # container on long episodes; record_every=8 → ~25 Hz (matches rendering_dt).
+    # container on long episodes; record_every=8 -> ~25 Hz (matches rendering_dt).
     record_every: int = max(1, int(cfg.get("dataset", {}).get("record_every", 8)))
 
     robot_cfg = cfg["robot"]
     open_w: float = float(robot_cfg["gripper_open_width"])
     closed_w: float = float(robot_cfg["gripper_closed_width"])
 
-    # ── Debug payloads ────────────────────────────────────────────────────────
+    # -- Debug payloads --------------------------------------------------------
     _zero7 = np.zeros(7, dtype=np.float64)
     grasp_pose_7d: np.ndarray = np.asarray(
         grasp_debug["grasp_pose_7d"] if grasp_debug else _zero7, dtype=np.float64
@@ -109,18 +109,18 @@ def execute(
         grasp_debug["pregrasp_pose_7d"] if grasp_debug else _zero7, dtype=np.float64
     )
 
-    # ── Mutable state across actions ──────────────────────────────────────────
-    # Gripper width target — initialised from current actual state.
+    # -- Mutable state across actions ------------------------------------------
+    # Gripper width target -- initialised from current actual state.
     all_pos_init = env.franka.get_joint_positions()
     fj_init = all_pos_init[task.finger_idx]
     current_gripper_width_target: float = float(fj_init[0] + fj_init[1])
 
-    # Sparse EE goal (world frame, 7d) — reused during gripper-only actions.
+    # Sparse EE goal (world frame, 7d) -- reused during gripper-only actions.
     # Initialise to current EE pose so the first gripper action has a valid target.
     current_sparse_goal7d: np.ndarray = planner.get_ee_pose().copy()
 
-    # Goal 6d in robot-base frame — for delta computation.
-    # None = "no previous goal yet" → delta defaults to zeros.
+    # Goal 6d in robot-base frame -- for delta computation.
+    # None = "no previous goal yet" -> delta defaults to zeros.
     prev_goal_6d_base: np.ndarray | None = None
 
     # Goal-level delta (constant within one action, recomputed at action start).
@@ -130,13 +130,13 @@ def execute(
     _goal7d_base = world_to_base(current_sparse_goal7d, env.robot_base_pose7d)
     current_goal_6d_base: np.ndarray = pose7d_to_6d(_goal7d_base)
 
-    # Last arm joint targets — filled each step; default to current positions.
+    # Last arm joint targets -- filled each step; default to current positions.
     last_arm_joint_targets: np.ndarray = all_pos_init[task.arm_idx].copy()
 
     # Outcome tracking.
     failed_phase: str | None = None
 
-    # ── Per-step helper ───────────────────────────────────────────────────────
+    # -- Per-step helper -------------------------------------------------------
     def _record_step(
         phase_str: str,
         arm_joint_targets: np.ndarray,
@@ -200,7 +200,7 @@ def execute(
         }
         recorder.append(step)
 
-    # ── Goal tracking helper ──────────────────────────────────────────────────
+    # -- Goal tracking helper --------------------------------------------------
     def _update_goal_tracking(new_goal7d: np.ndarray) -> None:
         """Recompute goal_6d_base and delta when sparse goal changes."""
         nonlocal current_goal_6d_base, current_delta_6d_base, prev_goal_6d_base
@@ -213,7 +213,7 @@ def execute(
         current_goal_6d_base = new_goal_6d_base.copy()
         prev_goal_6d_base = new_goal_6d_base.copy()
 
-    # ── Main action loop ──────────────────────────────────────────────────────
+    # -- Main action loop ------------------------------------------------------
     for action in actions:
         a_type: str = action["type"]
         a_phase: str = action["phase"]
@@ -279,7 +279,7 @@ def execute(
                 t = (i + 1) / max(gripper_steps, 1)
                 interp_width = start_width + t * (target_width - start_width)
 
-                # Apply only finger joint targets — arm holds its last commanded pos.
+                # Apply only finger joint targets -- arm holds its last commanded pos.
                 finger_pos = width_to_finger_joints(interp_width)
                 gripper_act = ArticulationAction(
                     joint_positions=finger_pos,
@@ -299,7 +299,7 @@ def execute(
             current_gripper_width_target = target_width
 
         else:
-            print(f"[executor] WARNING: unknown action type '{a_type}' — skipped.")
+            print(f"[executor] WARNING: unknown action type '{a_type}' -- skipped.")
 
     completed = failed_phase is None
     result: dict = {"completed": completed, "steps": recorder.num_steps}

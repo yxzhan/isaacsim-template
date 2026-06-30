@@ -1,12 +1,12 @@
 """
-planner.py — Motion planner ABC and RMPFlow implementation for cup_to_sink.
+planner.py -- Motion planner ABC and RMPFlow implementation for cup_to_sink.
 
 All isaacsim imports are deferred inside __init__ so this module can be
 imported before SimulationApp is started.
 
 Confirmed config keys (from policy_map.json in isaacsim.robot_motion.motion_generation):
     robot_name  = "Franka"
-    policy_name = "RMPflow"   ← note lower-case 'f' in 'flow'
+    policy_name = "RMPflow"   <- note lower-case 'f' in 'flow'
 
 Import path for Isaac Sim 5.1:
     from isaacsim.robot_motion.motion_generation import RmpFlow, ArticulationMotionPolicy
@@ -65,7 +65,7 @@ class Planner(ABC):
         planner's controlled frame (Lula ``right_gripper`` for RMPFlowPlanner).
         Obtain it from ``RMPFlowPlanner.get_ee_pose()``. Do NOT pass
         ``franka.end_effector.get_world_pose()`` (which is in the
-        ``panda_rightfinger`` frame) — it is a different frame and will produce
+        ``panda_rightfinger`` frame) -- it is a different frame and will produce
         silently-wrong results.
 
         Args:
@@ -105,7 +105,7 @@ class RMPFlowPlanner(Planner):
     ``isaacsim.robot_motion.motion_generation/motion_policy_configs/policy_map.json``::
 
         robot_name  = "Franka"
-        policy_name = "RMPflow"   ← lower-case 'f' is significant
+        policy_name = "RMPflow"   <- lower-case 'f' is significant
 
     End-effector frame used by the Franka Lula config: ``"right_gripper"``
     (set in ``franka/rmpflow/config.json``).
@@ -116,14 +116,14 @@ class RMPFlowPlanner(Planner):
     """
 
     def __init__(self, env: Any) -> None:
-        # All isaacsim imports deferred — SimulationApp must be running
+        # All isaacsim imports deferred -- SimulationApp must be running
         from isaacsim.robot_motion.motion_generation import (
             RmpFlow,
             ArticulationMotionPolicy,
             interface_config_loader,
         )
 
-        # ── Load Franka RMPflow config ────────────────────────────────────────
+        # -- Load Franka RMPflow config ----------------------------------------
         # Confirmed key: robot="Franka", policy="RMPflow" (lower-case 'f')
         rmp_config = interface_config_loader.load_supported_motion_policy_config(
             "Franka", "RMPflow"
@@ -145,15 +145,15 @@ class RMPFlowPlanner(Planner):
         # Instantiate RMPflow
         self._rmpflow = RmpFlow(**rmp_config)
 
-        # ── Set robot base pose ──────────────────────────────────────────────
-        # The Franka is NOT at the world origin (base ≈ [1.325, -0.390, 0.850]).
+        # -- Set robot base pose ----------------------------------------------
+        # The Franka is NOT at the world origin (base ~ [1.325, -0.390, 0.850]).
         # Without this call RMPflow targets would be computed in robot-base frame
         # treated as origin, causing the EE to reach a completely wrong location.
         base_pos = env.robot_base_pose7d[:3]   # [x, y, z] in metres
         base_quat = env.robot_base_pose7d[3:]  # [qw, qx, qy, qz]
         self._rmpflow.set_robot_base_pose(base_pos, base_quat)
 
-        # ── ArticulationMotionPolicy ──────────────────────────────────────────
+        # -- ArticulationMotionPolicy ------------------------------------------
         # physics_dt must match World(physics_dt=1/200)
         self._art_rmp = ArticulationMotionPolicy(
             env.franka,
@@ -163,7 +163,7 @@ class RMPFlowPlanner(Planner):
 
         self._target_pose7d: np.ndarray | None = None
 
-    # ── Planner ABC implementation ────────────────────────────────────────────
+    # -- Planner ABC implementation --------------------------------------------
 
     def reset(self) -> None:
         """Reset RMPflow internal state and re-apply the robot base pose.
@@ -184,7 +184,7 @@ class RMPFlowPlanner(Planner):
         """Set EE target in world frame.
 
         Args:
-            ee_pose7d_world: [x, y, z, qw, qx, qy, qz] — world frame, metres.
+            ee_pose7d_world: [x, y, z, qw, qx, qy, qz] -- world frame, metres.
         """
         self._target_pose7d = np.asarray(ee_pose7d_world, dtype=np.float64)
         # RmpFlow.set_end_effector_target expects orientation as [qw, qx, qy, qz]
@@ -218,7 +218,7 @@ class RMPFlowPlanner(Planner):
         IMPORTANT: ``current_ee_pose7d`` MUST be the end-effector pose in the
         Lula ``right_gripper`` frame. Obtain it from ``self.get_ee_pose()``.
         Do NOT pass ``franka.end_effector.get_world_pose()`` (``panda_rightfinger``
-        frame) — it is a different frame and will produce silently-wrong results.
+        frame) -- it is a different frame and will produce silently-wrong results.
 
         Position error: L2 distance between target and current XYZ.
         Rotation error: axis-angle magnitude of the relative quaternion
@@ -251,13 +251,13 @@ class RMPFlowPlanner(Planner):
 
         return pos_err < pos_tol and rot_err < rot_tol
 
-    # ── Utility ───────────────────────────────────────────────────────────────
+    # -- Utility ---------------------------------------------------------------
 
     def get_ee_pose(self) -> np.ndarray:
         """Return current EE world pose as [x, y, z, qw, qx, qy, qz].
 
         Uses Lula forward kinematics over the active arm joints read from the
-        Articulation — consistent with the frame that RMPflow plans in
+        Articulation -- consistent with the frame that RMPflow plans in
         (``"right_gripper"`` for the Franka config).
 
         Returns:
@@ -275,7 +275,7 @@ class RMPFlowPlanner(Planner):
 
         if q_active is None:
             raise RuntimeError(
-                "Articulation not initialised — cannot read joint positions."
+                "Articulation not initialised -- cannot read joint positions."
             )
 
         if isinstance(q_active, torch.Tensor):

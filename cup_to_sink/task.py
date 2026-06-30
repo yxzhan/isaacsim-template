@@ -1,5 +1,5 @@
 """
-task.py — Task class for episode reset, observations, and success checking
+task.py -- Task class for episode reset, observations, and success checking
 in the cup_to_sink benchmark.
 
 All pxr/isaacsim/omni imports are deferred to method scope so this module
@@ -26,7 +26,7 @@ class Task:
         self.cfg = cfg
         self.instruction: str = cfg["task"]["instruction"]
 
-        # Build joint-name → index map from the articulation DOF names.
+        # Build joint-name -> index map from the articulation DOF names.
         # dof_names is available after world.reset() initialises the articulation
         # (env_builder guarantees this before returning).
         dof_names = list(env.franka.dof_names)
@@ -34,19 +34,19 @@ class Task:
             name: i for i, name in enumerate(dof_names)
         }
 
-        # Arm joint indices — shape (7,)
+        # Arm joint indices -- shape (7,)
         arm_joint_names: list[str] = cfg["robot"]["arm_joint_names"]
         self.arm_idx: np.ndarray = np.array(
             [self._dof_name_to_idx[n] for n in arm_joint_names], dtype=int
         )
 
-        # Finger / gripper joint indices — shape (2,)
+        # Finger / gripper joint indices -- shape (2,)
         finger_joint_names: list[str] = cfg["robot"]["gripper_joint_names"]
         self.finger_idx: np.ndarray = np.array(
             [self._dof_name_to_idx[n] for n in finger_joint_names], dtype=int
         )
 
-        # Cache EE XFormPrim once — stage is already ready because env is fully
+        # Cache EE XFormPrim once -- stage is already ready because env is fully
         # initialised before __init__ is called (env_builder guarantees this).
         from isaacsim.core.prims import SingleXFormPrim
 
@@ -61,9 +61,9 @@ class Task:
         # current value then increments it, so callers never need to pass a step.
         self._timestep: int = 0
 
-    # ──────────────────────────────────────────────────────────────────────────
+    # --------------------------------------------------------------------------
     # Episode lifecycle
-    # ──────────────────────────────────────────────────────────────────────────
+    # --------------------------------------------------------------------------
 
     def reset(self, seed: int) -> dict:
         """Reset the episode: randomise poses, reset robot, settle physics.
@@ -94,7 +94,7 @@ class Task:
         scene_cfg = cfg["scene"]
         robot_cfg = cfg["robot"]
 
-        # ── 1. Sample randomisation ───────────────────────────────────────────
+        # -- 1. Sample randomisation -------------------------------------------
         samp = sample_episode(
             seed,
             rnd_cfg,
@@ -107,7 +107,7 @@ class Task:
         cup_z_offset: float = float(samp["cup_z_offset"])
         sink_target_pose7d: np.ndarray = samp["sink_target_pose7d"]
 
-        # ── 2. Set cup world pose ─────────────────────────────────────────────
+        # -- 2. Set cup world pose ---------------------------------------------
         # Z = counter-top Z + cup_z_offset (offset is 0.0 in default config).
         cup_z = float(scene_cfg["cup_spawn_position"][2]) + cup_z_offset
         cup_position = np.array(
@@ -116,10 +116,10 @@ class Task:
         cup_orientation = axis_angle_to_quat(np.array([0.0, 0.0, cup_yaw]))
         env.cup.set_world_pose(cup_position, cup_orientation)
 
-        # ── 3. Update sink target Xform in USD stage ──────────────────────────
+        # -- 3. Update sink target Xform in USD stage --------------------------
         # env_builder creates the sink as an Xform with a single
         # xformOp:translate op; we update it in-place to avoid touching
-        # the xformOp:orient (which stays at identity — no rotation needed).
+        # the xformOp:orient (which stays at identity -- no rotation needed).
         from pxr import UsdGeom
 
         sink_prim = env.stage.GetPrimAtPath(env.sink_path)
@@ -132,7 +132,7 @@ class Task:
         if sink_translate_attr and sink_translate_attr.IsValid():
             sink_translate_attr.Set(_sink_pos)
         else:
-            # Op absent — create it so randomisation is never silently skipped.
+            # Op absent -- create it so randomisation is never silently skipped.
             xformable = UsdGeom.Xformable(sink_prim)
             translate_op = xformable.AddTranslateOp()
             if translate_op is None:
@@ -141,7 +141,7 @@ class Task:
                 )
             translate_op.Set(_sink_pos)
 
-        # ── 4. Set Franka to default qpos + open gripper ──────────────────────
+        # -- 4. Set Franka to default qpos + open gripper ----------------------
         default_qpos: list[float] = list(rnd_cfg["robot_default_qpos"])  # 7 values
         open_finger_pos = float(robot_cfg["gripper_open_width"]) / 2.0
 
@@ -160,19 +160,19 @@ class Task:
             env.gripper.forward("open")
         )
 
-        # ── 5. Settle physics ─────────────────────────────────────────────────
+        # -- 5. Settle physics -------------------------------------------------
         settle_steps = int(rnd_cfg["settle_steps"])
         for _ in range(settle_steps):
             env.world.step(render=False)
 
-        # ── 6. Record initial state and store persistent target ───────────────
+        # -- 6. Record initial state and store persistent target ---------------
         self.sink_target_pose7d = sink_target_pose7d.copy()
         self._timestep = 0
 
         cup_pos_init, cup_ori_init = env.cup.get_world_pose()
         robot_qpos_init = env.franka.get_joint_positions()
 
-        # ── 7. Return episode metadata dict ───────────────────────────────────
+        # -- 7. Return episode metadata dict -----------------------------------
         return {
             "seed": int(seed),
             "cup_xy": cup_xy.tolist(),
@@ -183,9 +183,9 @@ class Task:
             "robot_qpos_init": robot_qpos_init.tolist(),
         }
 
-    # ──────────────────────────────────────────────────────────────────────────
+    # --------------------------------------------------------------------------
     # Observation
-    # ──────────────────────────────────────────────────────────────────────────
+    # --------------------------------------------------------------------------
 
     def get_obs(self) -> dict:
         """Return the unified observation dict for the current simulation state.
@@ -202,7 +202,7 @@ class Task:
             ee_pose_6d_base     np.ndarray (6,)   EE 6d in robot-base frame
             cup_pose            np.ndarray (7,)   cup world pose [x,y,z,qw,qx,qy,qz]
             sink_target_pose    np.ndarray (7,)   sampled sink target pose7d
-            images              dict  name → {"rgb": uint8 (H,W,3), "depth": uint16 (H,W)}
+            images              dict  name -> {"rgb": uint8 (H,W,3), "depth": uint16 (H,W)}
             language_instruction str
             timestep            int               episode step from self._timestep counter
 
@@ -221,7 +221,7 @@ class Task:
         env = self.env
         robot_cfg = cfg["robot"]
 
-        # ── Joint state ───────────────────────────────────────────────────────
+        # -- Joint state -------------------------------------------------------
         all_pos = env.franka.get_joint_positions()
         all_vel = env.franka.get_joint_velocities()
 
@@ -234,7 +234,7 @@ class Task:
         closed_w = float(robot_cfg["gripper_closed_width"])
         gripper_aperture = width_to_aperture(gripper_width, open_w, closed_w)
 
-        # ── EE pose (panda_hand in world frame) ───────────────────────────────
+        # -- EE pose (panda_hand in world frame) -------------------------------
         # Reuse the cached SingleXFormPrim created in __init__.
         ee_pos, ee_ori = self._ee_xform.get_world_pose()  # ori is [w, x, y, z]
 
@@ -245,7 +245,7 @@ class Task:
         ee_pose_7d_base = world_to_base(ee_pose_7d_world, env.robot_base_pose7d)
         ee_pose_6d_base = pose7d_to_6d(ee_pose_7d_base)
 
-        # ── Object poses ──────────────────────────────────────────────────────
+        # -- Object poses ------------------------------------------------------
         cup_pos_arr, cup_ori_arr = env.cup.get_world_pose()
         cup_pose = np.concatenate(
             [np.asarray(cup_pos_arr, dtype=float), np.asarray(cup_ori_arr, dtype=float)]
@@ -260,7 +260,7 @@ class Task:
                 cfg["scene"]["sink_target_pose_world"], dtype=float
             )
 
-        # ── Camera images ─────────────────────────────────────────────────────
+        # -- Camera images -----------------------------------------------------
         enabled: list[str] = cfg["dataset"]["enabled_cameras"]
         images = capture(env.cams, enabled)
 
@@ -281,9 +281,9 @@ class Task:
             "timestep": timestep,
         }
 
-    # ──────────────────────────────────────────────────────────────────────────
+    # --------------------------------------------------------------------------
     # Success
-    # ──────────────────────────────────────────────────────────────────────────
+    # --------------------------------------------------------------------------
 
     def check_success(self) -> tuple[bool, dict]:
         """Check whether the current episode state satisfies the success criteria.
@@ -294,7 +294,7 @@ class Task:
           - gripper open enough to have released the cup (width > 0.5 * open_w)
 
         Returns:
-            (success_bool, info_dict) — see ``cup_to_sink.success.check`` for
+            (success_bool, info_dict) -- see ``cup_to_sink.success.check`` for
             info_dict keys.
         """
         if self.sink_target_pose7d is None:
@@ -318,9 +318,9 @@ class Task:
             float(self.cfg["robot"]["gripper_open_width"]),
         )
 
-    # ──────────────────────────────────────────────────────────────────────────
+    # --------------------------------------------------------------------------
     # Helpers
-    # ──────────────────────────────────────────────────────────────────────────
+    # --------------------------------------------------------------------------
 
     def current_qpos(self) -> np.ndarray:
         """Return current arm joint positions, shape (7,)."""

@@ -1,5 +1,5 @@
 """
-sim_app.py — SimulationApp bootstrap helper for the cup_to_sink benchmark.
+sim_app.py -- SimulationApp bootstrap helper for the cup_to_sink benchmark.
 
 Usage:
     from cup_to_sink.sim_app import start
@@ -20,7 +20,7 @@ def _force_utf8_stdio() -> None:
     print() can never raise UnicodeEncodeError.
 
     When stdout is redirected to a pipe/file the default encoding is often
-    ASCII; printing characters like '…' or '↔' then raises inside the Isaac
+    ASCII; printing characters like '...' or '<->' then raises inside the Isaac
     Sim event loop and crashes the kit process. backslashreplace guarantees a
     print never raises regardless of the target encoding.
     """
@@ -28,7 +28,7 @@ def _force_utf8_stdio() -> None:
         try:
             stream.reconfigure(encoding="utf-8", errors="backslashreplace")
         except (AttributeError, ValueError):
-            pass  # not a reconfigurable text stream — best effort only
+            pass  # not a reconfigurable text stream -- best effort only
 
 
 def start(headless: bool = True, width: int = 1280, height: int = 720):
@@ -55,7 +55,7 @@ def start(headless: bool = True, width: int = 1280, height: int = 720):
     original_stdout = sys.stdout
     original_stderr = sys.stderr
 
-    # isaacsim must be imported here — NOT at module top level — because the
+    # isaacsim must be imported here -- NOT at module top level -- because the
     # pxr/omni/isaacsim extension system is not initialised until SimulationApp runs.
     from isaacsim import SimulationApp  # noqa: PLC0415
 

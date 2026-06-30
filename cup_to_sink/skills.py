@@ -10,7 +10,7 @@ Pure numpy; no Isaac Sim imports. No side-effects on inputs.
 import numpy as np
 from cup_to_sink.transforms import quat_rotate
 
-# Gripper fully open width (metres — matches Franka finger_joint_open * 2)
+# Gripper fully open width (metres -- matches Franka finger_joint_open * 2)
 _GRIPPER_OPEN = 0.08
 
 

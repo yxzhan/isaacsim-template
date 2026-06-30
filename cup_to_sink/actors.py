@@ -55,7 +55,7 @@ class SinkTarget:
     """Wraps a sampled sink target pose.
 
     Args:
-        sampled_pose7d: np.ndarray of shape (7,) — [px, py, pz, qw, qx, qy, qz]
+        sampled_pose7d: np.ndarray of shape (7,) -- [px, py, pz, qw, qx, qy, qz]
             representing the sampled placement location inside the sink.
     """
 

@@ -51,7 +51,7 @@ def main() -> None:
         lines.insert(0, f"STATUS: {status}")
         _RESULTS_FILE.write_text("\n".join(lines) + "\n")
 
-    # ── Boot ──────────────────────────────────────────────────────────────────
+    # -- Boot ------------------------------------------------------------------
     log("=== smoke_execute: executor records dense steps ===")
     log("Starting Isaac Sim (headless)...")
     app = start(headless=True)
@@ -60,11 +60,11 @@ def main() -> None:
     log(f"Loading config: {cfg_path}")
     cfg = load(str(cfg_path))
 
-    # ── Build env ─────────────────────────────────────────────────────────────
+    # -- Build env -------------------------------------------------------------
     log("Building environment (kitchen + Franka + cup + cameras)...")
     env = build_env(cfg, app)
 
-    # ── Instantiate task and planner ──────────────────────────────────────────
+    # -- Instantiate task and planner ------------------------------------------
     log("Instantiating Task and RMPFlowPlanner...")
     task = Task(env, cfg)
     planner = RMPFlowPlanner(env)
@@ -72,22 +72,22 @@ def main() -> None:
     log(f"  arm_idx:    {task.arm_idx.tolist()}")
     log(f"  finger_idx: {task.finger_idx.tolist()}")
 
-    # ── Reset ─────────────────────────────────────────────────────────────────
+    # -- Reset -----------------------------------------------------------------
     log("\nResetting task (seed=0)...")
     task.reset(0)
     planner.reset()
 
-    # ── Render a few frames so camera buffers are populated ───────────────────
+    # -- Render a few frames so camera buffers are populated -------------------
     log("Rendering 5 frames for camera buffer population...")
     for _ in range(5):
         env.world.step(render=True)
 
-    # ── Read initial EE pose (planner right_gripper frame) ────────────────────
+    # -- Read initial EE pose (planner right_gripper frame) --------------------
     e0 = planner.get_ee_pose().copy()
     log(f"\nInitial EE pose (right_gripper frame): {np.round(e0, 4).tolist()}")
     log(f"  z = {e0[2]:.4f} m")
 
-    # ── Build action sequence ─────────────────────────────────────────────────
+    # -- Build action sequence -------------------------------------------------
     # 1. Open gripper (it is already open after reset, but this records steps)
     actions: list[dict] = [
         {"type": "gripper", "width": 0.08, "phase": "open"},
@@ -107,7 +107,7 @@ def main() -> None:
         else:
             log(f"  [{i}] move  target_z={a['ee_pose7d'][2]:.4f}  phase={a['phase']}")
 
-    # ── Execute ───────────────────────────────────────────────────────────────
+    # -- Execute ---------------------------------------------------------------
     log("\nExecuting actions...")
     rec = Recorder()
     result = execute(env, task, planner, actions, rec, cfg)
@@ -117,27 +117,27 @@ def main() -> None:
     log(f"  num_steps:  {result['steps']}")
     log(f"  rec.num_steps: {rec.num_steps}")
 
-    # ── Read final EE pose ────────────────────────────────────────────────────
+    # -- Read final EE pose ----------------------------------------------------
     e1 = planner.get_ee_pose().copy()
     dz = e1[2] - e0[2]
     log(f"\nFinal EE pose (right_gripper frame): {np.round(e1, 4).tolist()}")
     log(f"  z change: {dz:+.4f} m  (target was +0.10 m)")
 
-    # ── Assertions ────────────────────────────────────────────────────────────
+    # -- Assertions ------------------------------------------------------------
     log("\n--- Assertions ---")
 
     assert rec.num_steps > 0, (
-        f"FAIL: recorder has 0 steps — expected > 0 (gripper_steps={cfg['motion']['gripper_steps']})"
+        f"FAIL: recorder has 0 steps -- expected > 0 (gripper_steps={cfg['motion']['gripper_steps']})"
     )
     log(f"  rec.num_steps > 0:  PASS  ({rec.num_steps} steps)")
 
     assert dz > 0.0, (
-        f"FAIL: EE z did not increase — dz={dz:.4f} m, "
+        f"FAIL: EE z did not increase -- dz={dz:.4f} m, "
         f"expected > 0 (lift +0.10 m target was commanded)"
     )
     log(f"  EE z increased:     PASS  (dz={dz:+.4f} m)")
 
-    # ── Write HDF5 ────────────────────────────────────────────────────────────
+    # -- Write HDF5 ------------------------------------------------------------
     log(f"\nWriting HDF5 to {_HDF5_PATH}...")
     meta = {
         "task_name": "cup_to_sink",
@@ -148,7 +148,7 @@ def main() -> None:
     rec.write(_HDF5_PATH, meta=meta)
     log(f"  HDF5 written: {_HDF5_PATH}")
 
-    # ── HDF5 round-trip assertions ────────────────────────────────────────────
+    # -- HDF5 round-trip assertions --------------------------------------------
     log("\n--- HDF5 round-trip ---")
     import h5py
 
@@ -169,7 +169,7 @@ def main() -> None:
     )
     log(f"  /actions/policy_action_command ({expected_rows}, 8): PASS")
 
-    # ── Summary ───────────────────────────────────────────────────────────────
+    # -- Summary ---------------------------------------------------------------
     log("\n=== smoke_execute SUMMARY ===")
     log(f"  num_steps:                    {rec.num_steps}")
     log(f"  EE z change:                  {dz:+.4f} m")

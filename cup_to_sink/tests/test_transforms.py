@@ -57,8 +57,8 @@ def test_quat_conj():
     np.testing.assert_allclose(result, expected, atol=1e-6)
 
 def test_quat_rotate_90z():
-    """Test rotating vector [1,0,0] by +90° rotation about +Z."""
-    # Quaternion for +90° rotation about Z: [cos(π/4), 0, 0, sin(π/4)]
+    """Test rotating vector [1,0,0] by +90deg rotation about +Z."""
+    # Quaternion for +90deg rotation about Z: [cos(pi/4), 0, 0, sin(pi/4)]
     q = np.array([np.cos(np.pi/4), 0, 0, np.sin(np.pi/4)])
     v = np.array([1, 0, 0])
     expected = np.array([0, 1, 0])
@@ -68,11 +68,11 @@ def test_quat_rotate_90z():
 def test_world_to_base_rotated():
     """Test world_to_base with rotated base frame.
 
-    Base frame at position [1,0,0] rotated +90° about +Z.
+    Base frame at position [1,0,0] rotated +90deg about +Z.
     World point at [1,1,0] with identity orientation.
     In base frame, position should be approximately [1,0,0].
     """
-    # Base at [1,0,0] with +90° rotation about Z
+    # Base at [1,0,0] with +90deg rotation about Z
     base_pos = np.array([1., 0, 0])
     base_quat = np.array([np.cos(np.pi/4), 0, 0, np.sin(np.pi/4)])
     base = np.concatenate([base_pos, base_quat])

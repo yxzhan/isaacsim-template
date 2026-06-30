@@ -1,5 +1,5 @@
 """
-env_builder.py — Build the cup_to_sink simulation environment.
+env_builder.py -- Build the cup_to_sink simulation environment.
 
 All pxr/isaacsim/omni imports are deferred inside build_env() so this module
 can be safely imported before SimulationApp is started.
@@ -62,7 +62,7 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
 
     from cup_to_sink.cameras import setup_cameras
 
-    # ── World ─────────────────────────────────────────────────────────────────
+    # -- World -----------------------------------------------------------------
     world = World(
         stage_units_in_meters=1.0,
         physics_dt=1.0 / 200.0,
@@ -71,18 +71,18 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
     world.reset()
     stage = omni.usd.get_context().get_stage()
 
-    # ── Ground ────────────────────────────────────────────────────────────────
+    # -- Ground ----------------------------------------------------------------
     ground_usd = str(_REPO_ROOT / "usd/Grid/default_environment.usd")
     define_prim("/World/Ground", "Xform").GetReferences().AddReference(ground_usd)
 
-    # ── Kitchen ───────────────────────────────────────────────────────────────
+    # -- Kitchen ---------------------------------------------------------------
     kitchen_usd = str(_REPO_ROOT / cfg["scene"]["lab_usd_path"])
     create_prim(
         usd_path=kitchen_usd,
         prim_path="/World/Kitchen",
     )
 
-    # ── Lights (so raytraced scene is not black) ──────────────────────────────
+    # -- Lights (so raytraced scene is not black) ------------------------------
     define_prim("/World/Lights", "Xform")
     _light_positions = [
         (1.5, -0.4, 2.5),
@@ -97,7 +97,7 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
             position=pos,
         )
 
-    # ── Franka ────────────────────────────────────────────────────────────────
+    # -- Franka ----------------------------------------------------------------
     robot_cfg = cfg["robot"]
     base_position = np.array(robot_cfg["base_position"], dtype=float)
     base_quat = np.array(robot_cfg["base_quat"], dtype=float)   # [w, x, y, z]
@@ -112,7 +112,7 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
     franka_prim.GetVariantSet("Mesh").SetVariantSelection("Quality")
 
     # action_deltas=None so "close" commands the FULL closed target in one shot
-    # and holds it — the position error against the grasped object becomes the
+    # and holds it -- the position error against the grasped object becomes the
     # grip force.
     franka_gripper = ParallelGripper(
         end_effector_prim_path=f"{franka_prim_path}/panda_rightfinger",
@@ -138,7 +138,7 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
         )
     )
 
-    # High-friction physics material — bound to both fingers so grasped objects
+    # High-friction physics material -- bound to both fingers so grasped objects
     # don't slide out during the lift.  Re-used for the cup below.
     grip_mat_path = "/World/PhysicsMaterials/high_friction"
     grip_mat = UsdShade.Material.Define(stage, grip_mat_path)
@@ -156,7 +156,7 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
             materialPurpose="physics",
         )
 
-    # ── Cup ───────────────────────────────────────────────────────────────────
+    # -- Cup -------------------------------------------------------------------
     scene_cfg = cfg["scene"]
     cup_usd = str(_REPO_ROOT / scene_cfg["cup_usd_path"])
     cup_prim_path: str = scene_cfg["cup_prim_path"]  # "/World/Objects/Cup"
@@ -167,7 +167,7 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
     cup_prim_ref = add_reference_to_stage(usd_path=cup_usd, prim_path=cup_prim_path)
 
     # Compute spawn Z from the cup's bounding box so its base sits just above
-    # the counter surface — same approach as apartment.py lines 532-549.
+    # the counter surface -- same approach as apartment.py lines 532-549.
     counter_top_z = float(scene_cfg["counter_top_z"])
     _SPAWN_GAP = 0.02   # 2 cm clearance above counter before physics settle
     _bb_cache = UsdGeom.BBoxCache(
@@ -201,7 +201,7 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
     cup_mesh_path = cup_prim_path + "/SM_Cup"
     cup_mesh_prim = stage.GetPrimAtPath(cup_mesh_path)
     if cup_mesh_prim and cup_mesh_prim.IsValid():
-        # setRigidBody on SM_Cup is idempotent — it (re-)applies RigidBodyAPI
+        # setRigidBody on SM_Cup is idempotent -- it (re-)applies RigidBodyAPI
         # and ensures a convexHull collision shape is present.
         physx_utils.setRigidBody(cup_mesh_prim, "convexHull", False)
         UsdShade.MaterialBindingAPI.Apply(cup_mesh_prim).Bind(
@@ -228,7 +228,7 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
         )
     )
 
-    # ── Sink target Xform (invisible marker) ─────────────────────────────────
+    # -- Sink target Xform (invisible marker) ---------------------------------
     # [x, y, z, qw, qx, qy, qz]
     sink_target_pose = scene_cfg["sink_target_pose_world"]
     sink_path = "/World/SinkTarget"
@@ -249,11 +249,11 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
     )
     UsdGeom.Imageable(sink_prim).MakeInvisible()
 
-    # ── Cameras ───────────────────────────────────────────────────────────────
+    # -- Cameras ---------------------------------------------------------------
     enabled = cfg["dataset"]["enabled_cameras"]
     cams = setup_cameras(cfg["cameras"], enabled)
 
-    # ── Final reset + physics settle + open gripper ───────────────────────────
+    # -- Final reset + physics settle + open gripper ---------------------------
     # world.reset() re-inits the physics view so all new articulations
     # (Franka) and rigid bodies (cup) are fully registered.
     world.reset()

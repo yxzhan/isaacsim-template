@@ -20,7 +20,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Repository root: cup_to_sink/tests/smoke_task.py → parents[2]
+# Repository root: cup_to_sink/tests/smoke_task.py -> parents[2]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _RESULTS_FILE = Path("/tmp/smoke_task_result.txt")
 
@@ -43,7 +43,7 @@ def main() -> None:
         lines.insert(0, f"STATUS: {status}")
         _RESULTS_FILE.write_text("\n".join(lines) + "\n")
 
-    # ── Boot ──────────────────────────────────────────────────────────────────
+    # -- Boot ------------------------------------------------------------------
     log("=== smoke_task: Task reset/obs/success ===")
     log("Starting Isaac Sim (headless)...")
     app = start(headless=True)
@@ -52,18 +52,18 @@ def main() -> None:
     log(f"Loading config: {cfg_path}")
     cfg = load(str(cfg_path))
 
-    # ── Build env ─────────────────────────────────────────────────────────────
+    # -- Build env -------------------------------------------------------------
     log("Building environment (kitchen + Franka + cup + cameras)...")
     env = build_env(cfg, app)
 
-    # ── Instantiate Task ──────────────────────────────────────────────────────
+    # -- Instantiate Task ------------------------------------------------------
     log("Instantiating Task...")
     task = Task(env, cfg)
     log(f"  instruction: {task.instruction!r}")
     log(f"  arm_idx:     {task.arm_idx.tolist()}")
     log(f"  finger_idx:  {task.finger_idx.tolist()}")
 
-    # ── reset(0) ──────────────────────────────────────────────────────────────
+    # -- reset(0) --------------------------------------------------------------
     log("\n--- reset(seed=0) ---")
     r0 = task.reset(0)
     cup_xy_0 = np.array(r0["cup_xy"])
@@ -80,7 +80,7 @@ def main() -> None:
     log(f"  live cup pos after reset: {np.asarray(cup_pos_live_0)}")
     log(f"  sink_target_pose7d:      {sink_pose7d_0}")
 
-    # ── reset(1) ──────────────────────────────────────────────────────────────
+    # -- reset(1) --------------------------------------------------------------
     log("\n--- reset(seed=1) ---")
     r1 = task.reset(1)
     cup_xy_1 = np.array(r1["cup_xy"])
@@ -96,7 +96,7 @@ def main() -> None:
     log(f"  live cup pos after reset: {np.asarray(cup_pos_live_1)}")
     log(f"  sink_target_pose7d:      {sink_pose7d_1}")
 
-    # ── Assert seeds produce different poses ──────────────────────────────────
+    # -- Assert seeds produce different poses ----------------------------------
     log("\n--- Seed diversity assertions ---")
 
     cup_xy_same = bool(np.allclose(cup_xy_0, cup_xy_1))
@@ -106,22 +106,22 @@ def main() -> None:
     log(f"  sink_xy  seed0={sink_xy_0}  seed1={sink_xy_1}  same={sink_xy_same}")
 
     assert not cup_xy_same, (
-        f"FAIL: seed 0 and seed 1 produced identical cup_xy={cup_xy_0} — "
+        f"FAIL: seed 0 and seed 1 produced identical cup_xy={cup_xy_0} -- "
         "randomisation is not working."
     )
     assert not sink_xy_same, (
-        f"FAIL: seed 0 and seed 1 produced identical sink_xy={sink_xy_0} — "
+        f"FAIL: seed 0 and seed 1 produced identical sink_xy={sink_xy_0} -- "
         "sink randomisation is not working."
     )
     log("  cup_xy DIFFER:    PASS")
     log("  sink_xy DIFFER:   PASS")
 
-    # ── Render a few frames so camera buffers are populated ───────────────────
+    # -- Render a few frames so camera buffers are populated -------------------
     log("\nRendering 5 frames for camera buffer population...")
     for _ in range(5):
         env.world.step(render=True)
 
-    # ── get_obs() ─────────────────────────────────────────────────────────────
+    # -- get_obs() -------------------------------------------------------------
     log("\n--- get_obs() ---")
     obs = task.get_obs()
 
@@ -154,7 +154,7 @@ def main() -> None:
             f"depth={depth.shape} {depth.dtype}  "
             f"depth_nonzero={int(np.count_nonzero(depth))}")
 
-    # ── Shape / finiteness assertions ─────────────────────────────────────────
+    # -- Shape / finiteness assertions -----------------------------------------
     log("\n--- Obs assertions ---")
 
     assert np.asarray(obs["joint_pos"]).shape == (7,), (
@@ -205,21 +205,21 @@ def main() -> None:
             )
         log(f"  image shapes / dtypes ({len(images)}/{len(enabled_cams)} cameras): PASS")
     else:
-        log(f"  images: 0/{len(enabled_cams)} cameras captured (render steps insufficient — soft skip)")
+        log(f"  images: 0/{len(enabled_cams)} cameras captured (render steps insufficient -- soft skip)")
 
-    # ── check_success() ───────────────────────────────────────────────────────
+    # -- check_success() -------------------------------------------------------
     log("\n--- check_success() ---")
     success_bool, success_info = task.check_success()
     log(f"  success:        {success_bool}")
     log(f"  info:           {success_info}")
 
     assert success_bool is False, (
-        f"FAIL: check_success() returned True right after reset — "
+        f"FAIL: check_success() returned True right after reset -- "
         f"cup is on the counter far from the sink.  info={success_info}"
     )
     log("  success=False:  PASS  (cup is far from sink, as expected)")
 
-    # ── Summary ───────────────────────────────────────────────────────────────
+    # -- Summary ---------------------------------------------------------------
     log("\n=== smoke_task SUMMARY ===")
     log(f"  seed0 cup_xy:        {cup_xy_0.tolist()}")
     log(f"  seed1 cup_xy:        {cup_xy_1.tolist()}")

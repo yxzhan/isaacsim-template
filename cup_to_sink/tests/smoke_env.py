@@ -18,7 +18,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def main() -> None:
-    # ── Delayed imports (must be after SimulationApp starts) ──────────────────
+    # -- Delayed imports (must be after SimulationApp starts) ------------------
     from cup_to_sink.sim_app import start
     from cup_to_sink.config import load
     from cup_to_sink.env_builder import build_env
@@ -26,7 +26,7 @@ def main() -> None:
 
     import numpy as np
 
-    # ── Boot ──────────────────────────────────────────────────────────────────
+    # -- Boot ------------------------------------------------------------------
     print("=== cup_to_sink smoke_env ===")
     print("Starting Isaac Sim (headless)...")
     app = start(headless=True)
@@ -35,11 +35,11 @@ def main() -> None:
     print(f"Loading config: {cfg_path}")
     cfg = load(str(cfg_path))
 
-    # ── Build environment ─────────────────────────────────────────────────────
+    # -- Build environment -----------------------------------------------------
     print("Building environment (kitchen + Franka + cup + cameras)...")
     env = build_env(cfg, app)
 
-    # ── Step simulation ───────────────────────────────────────────────────────
+    # -- Step simulation -------------------------------------------------------
     # Physics-only steps to let cup settle on counter
     print("Stepping 57 physics frames...")
     for _ in range(57):
@@ -50,7 +50,7 @@ def main() -> None:
     for _ in range(3):
         env.world.step(render=True)
 
-    # ── Diagnostics ───────────────────────────────────────────────────────────
+    # -- Diagnostics -----------------------------------------------------------
     print("\n=== Smoke Test Results ===")
 
     # Franka DOF
@@ -79,7 +79,7 @@ def main() -> None:
     else:
         print(f"sink path: {env.sink_path}  WARNING: prim not found or invalid")
 
-    # ── Camera capture ────────────────────────────────────────────────────────
+    # -- Camera capture --------------------------------------------------------
     enabled = cfg["dataset"]["enabled_cameras"]
     caps = capture(env.cams, enabled)
 
@@ -108,7 +108,7 @@ def main() -> None:
             print(f"    ASSERTION FAILED: {exc}")
             all_ok = False
 
-    # ── Summary ───────────────────────────────────────────────────────────────
+    # -- Summary ---------------------------------------------------------------
     print("\n=== Summary ===")
     print(f"franka dof: {dof}")
     print(f"cup z: {cup_z:.4f} m  (counter top: {counter_top_z:.4f} m)")

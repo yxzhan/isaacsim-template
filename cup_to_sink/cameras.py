@@ -1,5 +1,5 @@
 """
-cameras.py — Camera setup and RGB-D capture for the cup_to_sink benchmark.
+cameras.py -- Camera setup and RGB-D capture for the cup_to_sink benchmark.
 
 All pxr/isaacsim/omni imports are deferred to function scope so this module
 can be imported before SimulationApp is started.
@@ -21,7 +21,7 @@ def setup_cameras(cfg_cameras: dict, enabled: list) -> dict:
 
     World cameras (front / left / right) receive a world-space pose directly
     from the constructor.  The wrist camera lives under the ``parent_prim_path``
-    (panda_hand) and its ``position``/``quat`` are a LOCAL offset — they are
+    (panda_hand) and its ``position``/``quat`` are a LOCAL offset -- they are
     applied after construction via ``set_local_pose`` so the camera rides the
     end-effector.
 
@@ -88,8 +88,8 @@ def capture(cams: dict, enabled: list) -> dict:
     """Capture an RGB-D frame from each enabled camera.
 
     RGB  : ``cam.get_rgba()[:, :, :3]`` cast to uint8.
-    Depth: ``cam.get_depth()`` (metres) → NaN→0 → clip [0, 65.535] →
-           ×1000 → uint16 (millimetres, max ≈ 65 m).
+    Depth: ``cam.get_depth()`` (metres) -> NaN->0 -> clip [0, 65.535] ->
+           x1000 -> uint16 (millimetres, max ~ 65 m).
 
     Cameras whose frame buffer is not yet populated (returns None) are
     silently skipped so the caller can retry after more render steps.
@@ -118,8 +118,8 @@ def capture(cams: dict, enabled: list) -> dict:
         # Drop alpha channel; ensure uint8.
         rgb = rgba[:, :, :3].astype(np.uint8)
 
-        # NaN / inf → 0, clip to uint16 range (65535 mm ≈ 65.5 m), then
-        # convert metres → millimetres and cast to uint16.
+        # NaN / inf -> 0, clip to uint16 range (65535 mm ~ 65.5 m), then
+        # convert metres -> millimetres and cast to uint16.
         depth_clipped = np.clip(
             np.nan_to_num(depth_m, nan=0.0, posinf=0.0, neginf=0.0),
             0.0,

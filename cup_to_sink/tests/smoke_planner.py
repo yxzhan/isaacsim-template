@@ -15,7 +15,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Repository root: cup_to_sink/tests/smoke_planner.py → parents[2]
+# Repository root: cup_to_sink/tests/smoke_planner.py -> parents[2]
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 # Results written here so they survive stdout fd-hijacking by Isaac Sim
 _RESULTS_FILE = _REPO_ROOT / ".superpowers/sdd/smoke_planner_results.txt"
@@ -30,7 +30,7 @@ def main() -> None:
     from cup_to_sink.planner import RMPFlowPlanner
     from cup_to_sink.transforms import axis_angle_to_quat
 
-    # ── Boot ──────────────────────────────────────────────────────────────────
+    # -- Boot ------------------------------------------------------------------
     print("=== cup_to_sink smoke_planner ===")
     print("Starting Isaac Sim (headless)...")
     app = start(headless=True)
@@ -42,21 +42,21 @@ def main() -> None:
     print("Building environment (kitchen + Franka + cup)...")
     env = build_env(cfg, app)
 
-    # ── Cup world pose ────────────────────────────────────────────────────────
+    # -- Cup world pose --------------------------------------------------------
     cup_pos, cup_ori = env.cup.get_world_pose()
     print(f"Cup world pose: pos={cup_pos}  ori={cup_ori}")
 
-    # ── Target: 0.20 m above the cup, top-down gripper orientation ──────────
-    # Top-down = gripper Z-axis pointing world-down = 180° rotation about Y.
-    # rotvec [0, pi, 0]  →  quat [w=0, x=0, y=1, z=0]
+    # -- Target: 0.20 m above the cup, top-down gripper orientation ----------
+    # Top-down = gripper Z-axis pointing world-down = 180deg rotation about Y.
+    # rotvec [0, pi, 0]  ->  quat [w=0, x=0, y=1, z=0]
     #
     # Reachability note: the Franka base is at X=1.325 facing +X; with the
     # top-down orientation [0,0,1,0] the arm's comfortable approach distance
-    # in X is ~0.25 m from the base (i.e. X≈1.575), which is ~0.075 m further
-    # than the cup (X≈1.50).  We add this offset so RMPflow converges cleanly
+    # in X is ~0.25 m from the base (i.e. X~1.575), which is ~0.075 m further
+    # than the cup (X~1.50).  We add this offset so RMPflow converges cleanly
     # while staying within the cup/basin area (basin centre is at X=1.565).
     robot_base_x = float(env.robot_base_pose7d[0])   # 1.325
-    target_x = robot_base_x + 0.25                   # 1.575 — reachable approach column
+    target_x = robot_base_x + 0.25                   # 1.575 -- reachable approach column
     target_pos = np.array(
         [target_x, float(cup_pos[1]), float(cup_pos[2]) + 0.20]
     )
@@ -64,14 +64,14 @@ def main() -> None:
     target_pose7d = np.concatenate([target_pos, target_quat])
     print(f"Target pose7d:  {target_pose7d}")
 
-    # ── Create planner ────────────────────────────────────────────────────────
+    # -- Create planner --------------------------------------------------------
     print("Creating RMPFlowPlanner...")
     planner = RMPFlowPlanner(env)
     planner.reset()
     planner.set_target(target_pose7d)
     print(f"Target set.  Robot base pose7d: {env.robot_base_pose7d}")
 
-    # ── Control loop ──────────────────────────────────────────────────────────
+    # -- Control loop ----------------------------------------------------------
     MAX_STEPS = 1000
     CHECK_INTERVAL = 20
     POS_TOL = 0.02   # 2 cm
@@ -109,7 +109,7 @@ def main() -> None:
 
     final_pos_err = float(np.linalg.norm(curr_ee_pose[:3] - target_pose7d[:3]))
 
-    # ── Print results ─────────────────────────────────────────────────────────
+    # -- Print results ---------------------------------------------------------
     print("\n=== Smoke Planner Results ===")
     print("RMPflow config key:    robot='Franka'  policy='RMPflow'")
     print(f"Target pose7d:         {target_pose7d}")
@@ -120,7 +120,7 @@ def main() -> None:
     assert_pass = final_pos_err < 0.03
     print(f"Assert pos_err < 0.03: {'PASS' if assert_pass else 'FAIL'}")
 
-    # Write to file — Isaac may redirect stdout fd so file is the safety net
+    # Write to file -- Isaac may redirect stdout fd so file is the safety net
     _RESULTS_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(_RESULTS_FILE, "w") as fh:
         fh.write("=== smoke_planner results ===\n")
@@ -133,7 +133,7 @@ def main() -> None:
         fh.write(f"Assert pos_err < 0.03 m: {'PASS' if assert_pass else 'FAIL'}\n")
     print(f"Results written to: {_RESULTS_FILE}")
 
-    # ── Assert ────────────────────────────────────────────────────────────────
+    # -- Assert ----------------------------------------------------------------
     assert final_pos_err < 0.03, (
         f"FAIL: position error {final_pos_err:.4f} m >= 0.03 m after {final_step} steps. "
         f"Target: {target_pose7d[:3]}  Final EE: {curr_ee_pose[:3]}"

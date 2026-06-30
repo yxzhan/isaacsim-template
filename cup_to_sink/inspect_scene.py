@@ -1,5 +1,5 @@
 """
-inspect_scene.py — Boot Isaac Sim, load the kitchen USD, and print bounding boxes
+inspect_scene.py -- Boot Isaac Sim, load the kitchen USD, and print bounding boxes
 for all prims whose name/path matches kitchen features (sink, counter, etc.).
 
 Run as:
@@ -127,7 +127,7 @@ def main() -> None:
             except BaseException as exc:
                 print(f"  [warn] {path_str}: {exc}")
     except BaseException as exc:
-        print(f"\n[warn] stage.Traverse() aborted early: {exc}  — proceeding to summary sections")
+        print(f"\n[warn] stage.Traverse() aborted early: {exc}  -- proceeding to summary sections")
 
     # --- 4. Overall kitchen AABB ---
     print("\n" + "=" * 72, flush=True)
@@ -231,8 +231,8 @@ def main() -> None:
         cup_z = ref_z  # cup sits on the counter
 
         print(f"\n  cup spawn base xy (world) = [{cup_base_x:.4f}, {cup_base_y:.4f}]")
-        print(f"  cup_xlim (offsets from base_x) = [-0.10, 0.10]  # ±0.1 m along X")
-        print(f"  cup_ylim (offsets from base_y) = [-0.05, 0.05]  # ±0.05 m along Y")
+        print(f"  cup_xlim (offsets from base_x) = [-0.10, 0.10]  # +/-0.1 m along X")
+        print(f"  cup_ylim (offsets from base_y) = [-0.05, 0.05]  # +/-0.05 m along Y")
         print(f"  counter_top_z = {cup_z:.4f}  # cup spawn z")
 
         # Reachability check: Franka reach ~0.85 m

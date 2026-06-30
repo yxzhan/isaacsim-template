@@ -1,5 +1,5 @@
 """
-collect_data.py — Expert demonstration collector for the cup-to-sink benchmark.
+collect_data.py -- Expert demonstration collector for the cup-to-sink benchmark.
 
 Implements play_once() and a main() CLI that loops seeds until --num-success
 episodes have been collected and written to HDF5.
@@ -9,10 +9,10 @@ Grasp note
 The planner controls the Lula ``right_gripper`` frame (not ``panda_hand``).
 The cup contact-point ``quat_obj`` must therefore be authored in the
 right_gripper convention.  For a straight top-down grasp, use euler
-[0, 180, 0] deg → quat [w=0, x=0, y=1, z=0] in [w,x,y,z].  With this
+[0, 180, 0] deg -> quat [w=0, x=0, y=1, z=0] in [w,x,y,z].  With this
 orientation the local +Z axis (approach axis) points downward in world frame,
 so the pregrasp waypoint is above the contact point and the arm descends to
-grasp — exactly the behaviour we want.
+grasp -- exactly the behaviour we want.
 
 Attach fallback
 ---------------
@@ -44,7 +44,7 @@ import numpy as np
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-# ── Attach / detach helpers ────────────────────────────────────────────────────
+# -- Attach / detach helpers ----------------------------------------------------
 
 def _attach_cup_to_hand(env) -> str:
     """Create a USD FixedJoint between panda_hand and the cup rigid body.
@@ -102,7 +102,7 @@ def _attach_cup_to_hand(env) -> str:
         Gf.Quatf(float(q1[0]), Gf.Vec3f(float(q1[1]), float(q1[2]), float(q1[3])))
     )
 
-    print(f"[collect_data/attach] FixedJoint created: {hand_path} ↔ {cup_path} "
+    print(f"[collect_data/attach] FixedJoint created: {hand_path} <-> {cup_path} "
           f"(local1 pos={p1}, quat={q1})")
     return joint_path
 
@@ -122,7 +122,7 @@ def _detach_cup_from_hand(env, joint_path: str) -> None:
         print(f"[collect_data/attach] WARNING: joint prim not found: {joint_path}")
 
 
-# ── play_once ─────────────────────────────────────────────────────────────────
+# -- play_once -----------------------------------------------------------------
 
 def play_once(env, task, planner, cfg: dict, seed: int):
     """Run one expert episode.
@@ -130,7 +130,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     Steps:
       1. task.reset(seed) + planner.reset()
       2. Build CupActor / SinkTarget from live state.
-      3. Phase A: execute grasp_actor actions (open → pregrasp → grasp → close).
+      3. Phase A: execute grasp_actor actions (open -> pregrasp -> grasp -> close).
          After close, optionally attach the cup via FixedJoint.
       4. Derive lift base from the actual EE pose reported by the planner after
          the grasp completes (avoids any accumulated error in the planned pose).
@@ -153,7 +153,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     from cup_to_sink.dataset_writer import Recorder
     from cup_to_sink.transforms import make_T, invert_T, T_to_pose7d
 
-    # ── 1. Reset ──────────────────────────────────────────────────────────────
+    # -- 1. Reset --------------------------------------------------------------
     rnd = task.reset(seed)
     planner.reset()
 
@@ -161,11 +161,11 @@ def play_once(env, task, planner, cfg: dict, seed: int):
           f"cup_yaw={rnd['cup_yaw']:.3f}, "
           f"sink_target_pose={rnd['sink_target_pose7d'][:3]}")
 
-    # ── 2. Build actors ───────────────────────────────────────────────────────
+    # -- 2. Build actors -------------------------------------------------------
     cup = actors.CupActor(env.cup, cfg["cup"])
     sink = actors.SinkTarget(task.sink_target_pose7d)
 
-    # ── Config shorthand ──────────────────────────────────────────────────────
+    # -- Config shorthand ------------------------------------------------------
     cup_cfg = cfg["cup"]
     robot_cfg = cfg["robot"]
     motion_cfg = cfg["motion"]
@@ -179,7 +179,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     retreat_h = float(motion_cfg["retreat_height"])
     use_attach = bool(grasp_cfg.get("use_attach", False))
 
-    # ── 3. Build Phase-A actions (grasp) ─────────────────────────────────────
+    # -- 3. Build Phase-A actions (grasp) -------------------------------------
     grasp_actions = skills.grasp_actor(
         cup,
         pre_grasp_dis=pre_grasp_dis,
@@ -200,7 +200,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     print(f"[play_once seed={seed}] grasp target: {grasp_pose7d}")
     print(f"[play_once seed={seed}] pregrasp target: {pregrasp_pose7d}")
 
-    # ── 4. Execute Phase A ────────────────────────────────────────────────────
+    # -- 4. Execute Phase A ----------------------------------------------------
     rec = Recorder()
     result_a = executor.execute(
         env, task, planner, grasp_actions, rec, cfg, grasp_debug=grasp_debug
@@ -211,7 +211,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     if not result_a["completed"]:
         print(f"  failed_phase={result_a.get('failed_phase')}")
 
-    # ── (Optional) Snap + attach cup ──────────────────────────────────────────
+    # -- (Optional) Snap + attach cup ------------------------------------------
     # The descent onto a free-standing cup can knock it ~0.1 m sideways before
     # the gripper closes, producing a large lateral cup-in-gripper offset; the
     # offset-corrected place pose then becomes tilted/below-counter and RMPFlow
@@ -219,7 +219,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     # expert generator we "magnetize" the cup to a clean pose centred directly
     # under the gripper TCP (keeping its current height), then weld it with a
     # FixedJoint so the carry transform is purely vertical and reachable.
-    # (plan §12 attach scheme).  Honestly flagged in meta as grasp_snap_used.
+    # (plan sec12 attach scheme).  Honestly flagged in meta as grasp_snap_used.
     joint_path: str | None = None
     snap_used = False
     if use_attach:
@@ -230,7 +230,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
             env.cup.set_world_pose(clean_cup_pos, np.array([1.0, 0.0, 0.0, 0.0]))
             snap_used = True
             print(f"[play_once seed={seed}] snapped cup to under-TCP pose {clean_cup_pos}")
-        print(f"[play_once seed={seed}] Attaching cup via FixedJoint …")
+        print(f"[play_once seed={seed}] Attaching cup via FixedJoint ...")
         # Attach reads the (snapped) poses NOW to pin the joint rest frame, so do
         # NOT step physics between the snap and the attach (gravity would drop it).
         joint_path = _attach_cup_to_hand(env)
@@ -238,7 +238,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
         for _ in range(5):
             env.world.step(render=False)
 
-    # ── 5. Derive lift base from actual EE pose + compute cup-in-gripper offset ─
+    # -- 5. Derive lift base from actual EE pose + compute cup-in-gripper offset -
     # Using the live right_gripper pose reported by the planner avoids any
     # accumulated position error.  This pose is the starting point for the lift.
     actual_ee_pose7d = planner.get_ee_pose().copy()
@@ -249,7 +249,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     cup_quat_after_grasp = np.asarray(cup_quat_after_grasp)
     print(f"[play_once seed={seed}] cup pos after grasp: {cup_pos_after_grasp}")
 
-    # Compute rigid transform from right_gripper frame → cup (cup in gripper frame).
+    # Compute rigid transform from right_gripper frame -> cup (cup in gripper frame).
     # T_gripper_cup is constant throughout the carry (especially when use_attach=True).
     # Used to correct the place target so the CUP lands at the sink XY, not the gripper.
     T_world_gripper_g = make_T(actual_ee_pose7d[:3], actual_ee_pose7d[3:])
@@ -258,7 +258,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     cup_in_gripper_xyz = T_gripper_cup[:3, 3].copy()
     print(f"[play_once seed={seed}] cup-in-gripper offset xyz (local frame): {cup_in_gripper_xyz}")
 
-    # ── 6. Build Phase B actions (lift + pre-release moves) ───────────────────
+    # -- 6. Build Phase B actions (lift + pre-release moves) -------------------
     lift_actions = skills.move_by_displacement(
         actual_ee_pose7d,
         dx=0.0,
@@ -273,7 +273,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     # Math: T_world_cup = T_world_gripper @ T_gripper_cup
     #  => T_world_gripper_place = T_world_sink_target @ inv(T_gripper_cup)
     # When gripper reaches T_world_gripper_place:
-    #   T_world_cup = T_world_gripper_place @ T_gripper_cup = T_world_sink_target ✓
+    #   T_world_cup = T_world_gripper_place @ T_gripper_cup = T_world_sink_target ok
     sink_pos_w = np.asarray(task.sink_target_pose7d[:3])
     sink_quat_w = np.asarray(task.sink_target_pose7d[3:])
     T_world_sink_tgt = make_T(sink_pos_w, sink_quat_w)
@@ -303,11 +303,11 @@ def play_once(env, task, planner, cfg: dict, seed: int):
         place_pre_release = full_place_actions[:release_idx]   # preplace + place
         place_release_on = full_place_actions[release_idx:]    # release + retreat
     else:
-        # Fallback: no release action found — run everything together.
+        # Fallback: no release action found -- run everything together.
         place_pre_release = full_place_actions
         place_release_on = []
 
-    # ── 7. Execute Phase B (lift + preplace + place) ──────────────────────────
+    # -- 7. Execute Phase B (lift + preplace + place) --------------------------
     phase_b_actions = lift_actions + place_pre_release
     result_b = executor.execute(
         env, task, planner, phase_b_actions, rec, cfg, grasp_debug=grasp_debug
@@ -325,15 +325,15 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     print(f"[play_once seed={seed}] cup pos after Phase B: {cup_pos_after_phase_b}")
     print(f"[play_once seed={seed}] grasp held (cup rose from counter z): {grasp_held}")
 
-    # ── (Optional) Detach cup before opening gripper ──────────────────────────
+    # -- (Optional) Detach cup before opening gripper --------------------------
     if joint_path is not None:
-        print(f"[play_once seed={seed}] Detaching cup before release …")
+        print(f"[play_once seed={seed}] Detaching cup before release ...")
         _detach_cup_from_hand(env, joint_path)
         # Brief settle so the cup's weight registers before gripper opens.
         for _ in range(5):
             env.world.step(render=False)
 
-    # ── 8. Execute Phase C (release + retreat) ────────────────────────────────
+    # -- 8. Execute Phase C (release + retreat) --------------------------------
     if place_release_on:
         result_c = executor.execute(
             env, task, planner, place_release_on, rec, cfg, grasp_debug=grasp_debug
@@ -345,7 +345,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     for _ in range(50):
         env.world.step(render=False)
 
-    # ── 9. Check success ──────────────────────────────────────────────────────
+    # -- 9. Check success ------------------------------------------------------
     success, info = task.check_success()
 
     cup_pos_final, cup_quat_final = env.cup.get_world_pose()
@@ -362,7 +362,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     print(f"[play_once seed={seed}] cup_final={cup_pos_final}, "
           f"sink_target={sink_xyz}, xy_dist={xy_dist:.4f}m")
 
-    # ── 10. Build meta dict ───────────────────────────────────────────────────
+    # -- 10. Build meta dict ---------------------------------------------------
     scene_cfg = cfg["scene"]
     arm_joint_names: list[str] = list(robot_cfg["arm_joint_names"])
     gripper_joint_names: list[str] = list(robot_cfg["gripper_joint_names"])
@@ -375,14 +375,14 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     initial_arm_qpos = all_joints_init[arm_idx_list] if len(all_joints_init) > 7 else all_joints_init[:7]
 
     meta: dict = {
-        # ── Task ──────────────────────────────────────────────────────────────
+        # -- Task --------------------------------------------------------------
         "task_name": cfg["task"]["name"],
         "language_instruction": cfg["task"]["instruction"],
         "seed": int(seed),
         "success": bool(success),
-        # ── Config ────────────────────────────────────────────────────────────
+        # -- Config ------------------------------------------------------------
         "config_yaml": cfg.get("__raw_yaml__"),
-        # ── Scene / robot ─────────────────────────────────────────────────────
+        # -- Scene / robot -----------------------------------------------------
         "scene_usd_path": str(_REPO_ROOT / scene_cfg["lab_usd_path"]),
         "cup_usd_path":   str(_REPO_ROOT / scene_cfg["cup_usd_path"]),
         "cup_prim_path":  scene_cfg["cup_prim_path"],
@@ -391,22 +391,22 @@ def play_once(env, task, planner, cfg: dict, seed: int):
         "initial_gripper_width": float(robot_cfg["gripper_open_width"]),
         "initial_cup_pose":    np.asarray(rnd["cup_pose_init"]),
         "sink_target_pose":    np.asarray(task.sink_target_pose7d),
-        # ── Physics ───────────────────────────────────────────────────────────
+        # -- Physics -----------------------------------------------------------
         "physics_dt":  1.0 / 200.0,
         "control_dt":  1.0 / 200.0,
-        # ── Joints ────────────────────────────────────────────────────────────
+        # -- Joints ------------------------------------------------------------
         "joint_names":         arm_joint_names,
         "gripper_joint_names": gripper_joint_names,
-        # ── Gripper widths ────────────────────────────────────────────────────
+        # -- Gripper widths ----------------------------------------------------
         "gripper_open_width":   float(robot_cfg["gripper_open_width"]),
         "gripper_closed_width": float(robot_cfg["gripper_closed_width"]),
-        # ── Cameras ───────────────────────────────────────────────────────────
+        # -- Cameras -----------------------------------------------------------
         "enabled_cameras": list(cfg["dataset"]["enabled_cameras"]),
-        # ── Frame conventions ─────────────────────────────────────────────────
+        # -- Frame conventions -------------------------------------------------
         "ee_pose_frame":          "panda_hand",
         "default_policy_ee_frame": "robot_base",
         "ee_pose_rotation_type":  "axis_angle",
-        # ── Randomization sub-dict ────────────────────────────────────────────
+        # -- Randomization sub-dict --------------------------------------------
         "randomization": {
             "seed":               int(seed),
             "cup_initial_pose":   np.asarray(rnd["cup_pose_init"]),
@@ -421,7 +421,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
         meta["grasp_attach_used"] = True
         meta["grasp_snap_used"] = bool(snap_used)
 
-    # Diagnostics sub-dict — included in HDF5 meta and collect_log.json.
+    # Diagnostics sub-dict -- included in HDF5 meta and collect_log.json.
     meta["diagnostics"] = {
         "cup_pos_after_grasp_xyz":   cup_pos_after_grasp.tolist(),
         "ee_pose_after_grasp":       actual_ee_pose7d.tolist(),
@@ -436,7 +436,7 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     return success, rec, meta
 
 
-# ── main ──────────────────────────────────────────────────────────────────────
+# -- main ----------------------------------------------------------------------
 
 def main() -> int:
     parser = argparse.ArgumentParser(
@@ -465,7 +465,7 @@ def main() -> int:
     from cup_to_sink.sim_app import _force_utf8_stdio
     _force_utf8_stdio()
 
-    # ── Load config ────────────────────────────────────────────────────────────
+    # -- Load config ------------------------------------------------------------
     from cup_to_sink import config as cfg_mod
     cfg = cfg_mod.load(args.config)
 
@@ -481,22 +481,22 @@ def main() -> int:
     print(f"[collect_data] sink_target_pose_world: {cfg['scene']['sink_target_pose_world']}")
     print(f"[collect_data] use_attach: {cfg.get('grasp', {}).get('use_attach', False)}\n")
 
-    # ── Start Isaac Sim ────────────────────────────────────────────────────────
+    # -- Start Isaac Sim --------------------------------------------------------
     from cup_to_sink import sim_app as sim_app_mod
     app = sim_app_mod.start(headless=True)
 
-    # ── Build env once ─────────────────────────────────────────────────────────
+    # -- Build env once ---------------------------------------------------------
     from cup_to_sink import env_builder, task as task_mod, planner as planner_mod
 
-    print("[collect_data] Building env …")
+    print("[collect_data] Building env ...")
     env = env_builder.build_env(cfg, app)
-    print("[collect_data] Building task …")
+    print("[collect_data] Building task ...")
     task = task_mod.Task(env, cfg)
-    print("[collect_data] Building planner …")
+    print("[collect_data] Building planner ...")
     planner = planner_mod.RMPFlowPlanner(env)
     print("[collect_data] Env+task+planner ready.\n")
 
-    # ── Collection loop ────────────────────────────────────────────────────────
+    # -- Collection loop --------------------------------------------------------
     success_count = 0
     failed_seeds: list[int] = []
     result_log: list[dict] = []
@@ -562,7 +562,7 @@ def main() -> int:
 
         if success:
             ep_path = out_dir / f"episode_{success_count:04d}.hdf5"
-            print(f"\n[collect_data] SUCCESS — writing {ep_path} …")
+            print(f"\n[collect_data] SUCCESS -- writing {ep_path} ...")
             rec.write(str(ep_path), meta)
             size_mb = ep_path.stat().st_size / 1e6
             print(f"[collect_data] Written: {ep_path} ({size_mb:.1f} MB)")
@@ -574,7 +574,7 @@ def main() -> int:
         result_log.append(log_entry)
         _flush_log(result_log, out_dir)
 
-    # ── Summary ───────────────────────────────────────────────────────────────
+    # -- Summary ---------------------------------------------------------------
     print(f"\n{'='*64}")
     print(f"[collect_data] DONE")
     print(f"  successes collected : {success_count} / {args.num_success}")
