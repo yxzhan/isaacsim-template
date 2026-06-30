@@ -217,10 +217,15 @@ class Recorder:
 # ==============================================================
 
 def _write_str(grp: h5py.Group, name: str, value) -> None:
-    """Write a scalar string as np.bytes_; skip if value is None."""
+    """Write a scalar string; skip if value is None.
+
+    Encodes UTF-8 explicitly: np.bytes_(str) uses ASCII and raises
+    UnicodeEncodeError on any non-ASCII character (e.g. a config_yaml comment),
+    which would crash the whole episode save after a successful run.
+    """
     if value is None:
         return
-    grp.create_dataset(name, data=np.bytes_(str(value)))
+    grp.create_dataset(name, data=np.bytes_(str(value).encode("utf-8")))
 
 
 def _write_meta(m: h5py.Group, meta: dict, gz: dict) -> None:

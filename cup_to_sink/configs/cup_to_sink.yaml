@@ -10,17 +10,17 @@ scene:
   cup_prim_path: "/World/Objects/Cup"
   sink_target_prim_path: "/World/Kitchen/Sink/PlacePoint"
 
-  # ── Calibrated 2026-06-29 via cup_to_sink/inspect_scene.py ──────────────────
+  # -- Calibrated 2026-06-29 via cup_to_sink/inspect_scene.py ------------------
   # sink_area AABB (world space, meters):
   #   min=(1.2750, -0.7300, 0.0000)  max=(1.8550, 1.3300, 0.8500)
-  # Basin region inferred at Y ∈ [-0.730, -0.050] — the Y band before the
+  # Basin region inferred at Y in [-0.730, -0.050] - the Y band before the
   # dishwasher (Y=-0.050 to 0.450) and left drawers (Y=0.503 to 1.297).
   # sink_area_surface/visuals had an unresolved reference (kitchen_physics.usd
   # not linked), so no separate basin prim AABB was available; basin bounds are
   # structurally inferred from surrounding prims.
   # Counter top Z = 0.850 m.  EMPIRICAL FINDING (collect runs): this kitchen
-  # asset has NO physical basin recess at the sink location — a placed cup rests
-  # on the counter surface (rigid-body origin settles ≈0.89 m). Targeting z=0.70
+  # asset has NO physical basin recess at the sink location - a placed cup rests
+  # on the counter surface (rigid-body origin settles ~0.89 m). Targeting z=0.70
   # drove the (offset-corrected) gripper place pose below the counter, which is
   # unreachable, so the cup never arrived. We therefore set the sink target z to
   # the counter-surface level; "put the cup into the sink" is realised as
@@ -35,7 +35,7 @@ scene:
 
   # Fixed cup spawn position used for env_builder (smoke test, single-episode
   # builds).  Placed at X=1.555 which sits in the reliably-reachable window
-  # (X≈1.55-1.575) between the Franka base (X=1.325) and the basin centre
+  # (X~1.55-1.575) between the Franka base (X=1.325) and the basin centre
   # (X=1.565).  A top-down target at X=1.50 hit a kinematic dead zone in
   # testing; X=1.555 is empirically stable.
   # Z is the counter-top surface; env_builder adjusts for the cup's bbox.
@@ -50,9 +50,9 @@ robot:
   # Calibrated base position: front edge of sink counter, counter-top height,
   # Y-aligned with basin centre.  Counter front face X=1.275; base placed 5 cm
   # inside (X=1.325) so it sits on the counter surface.  Z=0.850 = counter top.
-  # Franka reach ≈ 0.85 m.  Distances from here:
-  #   → sink target (1.565, -0.390, 0.700): ~0.28 m  ✓
-  #   → nearest cup (1.565±0.10, -0.390±0.15, 0.850): max ~0.37 m  ✓
+  # Franka reach ~ 0.85 m.  Distances from here:
+  #   -> sink target (1.565, -0.390, 0.700): ~0.28 m  ok
+  #   -> nearest cup (1.565+/-0.10, -0.390+/-0.15, 0.850): max ~0.37 m  ok
   base_position: [1.325, -0.390, 0.850]
   base_quat: [1.0, 0.0, 0.0, 0.0]
   ee_frame: "panda_hand"
@@ -77,9 +77,9 @@ robot:
 randomization:
   seed: ${episode_seed}
   # Cup spawn offsets from scene.cup_spawn_position[:2] = (1.555, -0.390).
-  # Tightened to ±0.02 m for initial collection so every seed spawns in the
-  # confirmed-reachable window (X ∈ [1.535, 1.575], Y ∈ [-0.410, -0.370]).
-  # Widen to ±0.05–0.10 after a working grasp pose is confirmed.
+  # Tightened to +/-0.02 m for initial collection so every seed spawns in the
+  # confirmed-reachable window (X in [1.535, 1.575], Y in [-0.410, -0.370]).
+  # Widen to +/-0.05-0.10 after a working grasp pose is confirmed.
   cup_xlim: [-0.02, 0.02]
   cup_ylim: [-0.02, 0.02]
   cup_yaw_range: [-3.14, 3.14]
@@ -114,7 +114,7 @@ grasp:
 cup:
   contact_points:
     # Top-down grasp targeting the Lula right_gripper frame.
-    # quat_obj = euler [0, 180, 0] deg = Ry(180°) = [w=0, x=0, y=1, z=0].
+    # quat_obj = euler [0, 180, 0] deg = Ry(180deg) = [w=0, x=0, y=1, z=0].
     # With this orientation the local +Z axis (RMPflow approach axis) points
     # downward in world frame, so the pregrasp waypoint is above and the arm
     # descends to grasp.
@@ -131,7 +131,7 @@ cup:
       position_obj: [0.0, 0.0, 0.0]
       quat_obj: [1.0, 0.0, 0.0, 0.0]
 
-# Planner convergence tolerances — read by executor.py via cfg["planner"].
+# Planner convergence tolerances - read by executor.py via cfg["planner"].
 planner:
   max_move_steps: 600
   pos_tol: 0.02
@@ -147,10 +147,10 @@ success:
   # xy_threshold: cup must land within 6 cm of sink_target XY.
   xy_threshold: 0.06
   # z offsets from sink_target_pose_world z=0.700.
-  # z_min_offset=-0.03 → floor at 0.670 m (in case the basin is slightly lower).
-  # z_max_offset=0.20  → ceiling at 0.900 m.
+  # z_min_offset=-0.03 -> floor at 0.670 m (in case the basin is slightly lower).
+  # z_max_offset=0.20  -> ceiling at 0.900 m.
   #   The counter top is at 0.850 m; for a ~10 cm tall cup the rigid-body
-  #   centre of mass rests at ≈0.850+0.05=0.900 m when the cup sits on the
+  #   centre of mass rests at ~0.850+0.05=0.900 m when the cup sits on the
   #   counter with no basin recess.  If the basin has a 15 cm recess the cup
   #   settles near 0.700+0.05=0.750 m.  The 0.200 m window covers both cases
   #   without being absurdly wide.  Tighten once the real resting z is known.
