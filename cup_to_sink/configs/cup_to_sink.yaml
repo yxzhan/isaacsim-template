@@ -28,10 +28,12 @@ scene:
   cup_spawn_base_xy: [1.565, -0.390]
 
   # Fixed cup spawn position used for env_builder (smoke test, single-episode
-  # builds).  Placed midway between Franka base (X=1.325) and basin centre
-  # (X=1.565), aligned on Y with both.  Well within Franka's ~0.85 m reach.
+  # builds).  Placed at X=1.555 which sits in the reliably-reachable window
+  # (X≈1.55-1.575) between the Franka base (X=1.325) and the basin centre
+  # (X=1.565).  A top-down target at X=1.50 hit a kinematic dead zone in
+  # testing; X=1.555 is empirically stable.
   # Z is the counter-top surface; env_builder adjusts for the cup's bbox.
-  cup_spawn_position: [1.50, -0.390, 0.850]
+  cup_spawn_position: [1.555, -0.390, 0.850]
 
   # Z height of the counter top surface (cup sits here before pickup).
   counter_top_z: 0.850
@@ -68,13 +70,12 @@ robot:
 
 randomization:
   seed: ${episode_seed}
-  # Cup spawn offsets from scene.cup_spawn_base_xy = (1.565, -0.390).
-  # These keep the cup on the counter surface around the basin rim:
-  #   X ∈ [1.465, 1.665]  (within counter X range 1.275–1.855)
-  #   Y ∈ [-0.540, -0.240] (within basin Y range -0.730 to -0.050)
-  # All spawned positions are within 0.37 m of the Franka base → well in reach.
-  cup_xlim: [-0.10, 0.10]
-  cup_ylim: [-0.15, 0.15]
+  # Cup spawn offsets from scene.cup_spawn_position[:2] = (1.555, -0.390).
+  # Tightened to ±0.02 m for initial collection so every seed spawns in the
+  # confirmed-reachable window (X ∈ [1.535, 1.575], Y ∈ [-0.410, -0.370]).
+  # Widen to ±0.05–0.10 after a working grasp pose is confirmed.
+  cup_xlim: [-0.02, 0.02]
+  cup_ylim: [-0.02, 0.02]
   cup_yaw_range: [-3.14, 3.14]
   cup_z_offset_range: [0.0, 0.0]
   sink_target_sample_xy: true
@@ -93,13 +94,27 @@ grasp:
   fixed_contact_point_id: 0
   candidate_contact_point_ids: [0]
   record_selected_contact_point: true
+  # If true, after the gripper closes a USD FixedJoint is created between
+  # panda_hand and the cup rigid body so the cup is rigidly carried during the
+  # lift/place phases, then removed before the gripper-open action.
+  # Set true only if friction alone cannot hold the cup during the lift.
+  use_attach: true
 
 cup:
   contact_points:
-    - name: side_grasp
-      position_obj: [0.045, 0.0, 0.08]
-      quat_obj: [1.0, 0.0, 0.0, 0.0]
-      pregrasp_distance: 0.10
+    # Top-down grasp targeting the Lula right_gripper frame.
+    # quat_obj = euler [0, 180, 0] deg = Ry(180°) = [w=0, x=0, y=1, z=0].
+    # With this orientation the local +Z axis (RMPflow approach axis) points
+    # downward in world frame, so the pregrasp waypoint is above and the arm
+    # descends to grasp.
+    # position_obj z=0.05 places the right_gripper 5 cm above the cup rigid-
+    # body origin (approximately mid-cup height after settling on the counter).
+    # The x=y=0 centering keeps the contact symmetric about the cup axis, so
+    # any yaw randomisation on the cup does not bias the approach.
+    - name: top_down_grasp
+      position_obj: [0.0, 0.0, 0.05]
+      quat_obj: [0.0, 0.0, 1.0, 0.0]
+      pregrasp_distance: 0.12
   functional_points:
     - name: cup_center
       position_obj: [0.0, 0.0, 0.0]
@@ -118,12 +133,25 @@ motion:
   gripper_steps: 200
 
 success:
+  # xy_threshold: cup must land within 6 cm of sink_target XY.
   xy_threshold: 0.06
+  # z offsets from sink_target_pose_world z=0.700.
+  # z_min_offset=-0.03 → floor at 0.670 m (in case the basin is slightly lower).
+  # z_max_offset=0.20  → ceiling at 0.900 m.
+  #   The counter top is at 0.850 m; for a ~10 cm tall cup the rigid-body
+  #   centre of mass rests at ≈0.850+0.05=0.900 m when the cup sits on the
+  #   counter with no basin recess.  If the basin has a 15 cm recess the cup
+  #   settles near 0.700+0.05=0.750 m.  The 0.200 m window covers both cases
+  #   without being absurdly wide.  Tighten once the real resting z is known.
   z_min_offset: -0.03
-  z_max_offset: 0.15
+  z_max_offset: 0.20
 
 dataset:
   output_dir: "datasets/cup_to_sink"
+  # Record/capture cadence: a step is rendered+recorded every record_every
+  # physics ticks (200 Hz). 8 -> ~25 Hz. Recording every physics tick buffers
+  # 4x RGB-D per step in RAM and OOMs the container on long episodes.
+  record_every: 8
   enabled_cameras: ["front", "left", "right", "wrist"]
   save_rgb: true
   save_depth: true

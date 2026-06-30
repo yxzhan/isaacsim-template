@@ -90,6 +90,11 @@ def execute(
     pos_tol: float = float(planner_cfg.get("pos_tol", 0.02))
     rot_tol: float = float(planner_cfg.get("rot_tol", 0.1))
     gripper_steps: int = int(cfg["motion"]["gripper_steps"])
+    # Decimation: physics steps every tick (motion needs it), but cameras are
+    # rendered and a step is recorded only every record_every ticks.  Recording
+    # every 200 Hz physics step buffers 4x RGB-D per step in RAM and OOMs the
+    # container on long episodes; record_every=8 → ~25 Hz (matches rendering_dt).
+    record_every: int = max(1, int(cfg.get("dataset", {}).get("record_every", 8)))
 
     robot_cfg = cfg["robot"]
     open_w: float = float(robot_cfg["gripper_open_width"])
@@ -221,11 +226,11 @@ def execute(
             planner.set_target(goal7d)
 
             reached = False
+            recorded_last = False
             for _step_i in range(max_move_steps):
                 qpos = env.franka.get_joint_positions()
                 act = planner.step(qpos)
                 env.franka.apply_action(act)
-                env.world.step(render=True)
 
                 # Extract arm joint targets from the articulation action.
                 # ArticulationMotionPolicy returns targets for active (arm) joints only.
@@ -239,14 +244,18 @@ def execute(
                 else:
                     last_arm_joint_targets = env.franka.get_joint_positions()[task.arm_idx].copy()
 
-                _record_step(a_phase, last_arm_joint_targets)
+                reached = planner.reached(
+                    planner.get_ee_pose(), pos_tol=pos_tol, rot_tol=rot_tol
+                )
+                # Record on the decimation cadence OR on the final converged step,
+                # so the goal pose is always captured. Render only when recording.
+                do_record = (_step_i % record_every == 0) or reached
+                env.world.step(render=do_record)
+                if do_record:
+                    _record_step(a_phase, last_arm_joint_targets)
+                recorded_last = do_record
 
-                if planner.reached(
-                    planner.get_ee_pose(),
-                    pos_tol=pos_tol,
-                    rot_tol=rot_tol,
-                ):
-                    reached = True
+                if reached:
                     break
 
             if not reached and failed_phase is None:
@@ -277,12 +286,15 @@ def execute(
                     joint_indices=task.finger_idx,
                 )
                 env.franka.apply_action(gripper_act)
-                env.world.step(render=True)
 
-                # During gripper steps use current arm sensor positions as targets.
-                arm_targets = env.franka.get_joint_positions()[task.arm_idx].copy()
-
-                _record_step(a_phase, arm_targets, override_gripper_width_target=interp_width)
+                # Decimate: render+record every record_every ticks, and always
+                # capture the final gripper step so the closed/open pose is saved.
+                do_record = (i % record_every == 0) or (i == gripper_steps - 1)
+                env.world.step(render=do_record)
+                if do_record:
+                    # During gripper steps use current arm sensor positions as targets.
+                    arm_targets = env.franka.get_joint_positions()[task.arm_idx].copy()
+                    _record_step(a_phase, arm_targets, override_gripper_width_target=interp_width)
 
             current_gripper_width_target = target_width
 

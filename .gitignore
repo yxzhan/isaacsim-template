@@ -1,5 +1,7 @@
 isaacsim-cache/
 *copy/
+# HDF5 demo datasets (large binaries — commit code only)
+datasets/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
