@@ -211,15 +211,30 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     if not result_a["completed"]:
         print(f"  failed_phase={result_a.get('failed_phase')}")
 
-    # ── (Optional) Attach cup ─────────────────────────────────────────────────
+    # ── (Optional) Snap + attach cup ──────────────────────────────────────────
+    # The descent onto a free-standing cup can knock it ~0.1 m sideways before
+    # the gripper closes, producing a large lateral cup-in-gripper offset; the
+    # offset-corrected place pose then becomes tilted/below-counter and RMPFlow
+    # cannot reach it, so the cup lands far from the sink.  For a deterministic
+    # expert generator we "magnetize" the cup to a clean pose centred directly
+    # under the gripper TCP (keeping its current height), then weld it with a
+    # FixedJoint so the carry transform is purely vertical and reachable.
+    # (plan §12 attach scheme).  Honestly flagged in meta as grasp_snap_used.
     joint_path: str | None = None
+    snap_used = False
     if use_attach:
+        if bool(grasp_cfg.get("snap_to_gripper", True)):
+            g_pose = planner.get_ee_pose()
+            cup_pos_now, _ = env.cup.get_world_pose()
+            clean_cup_pos = np.array([g_pose[0], g_pose[1], float(np.asarray(cup_pos_now)[2])])
+            env.cup.set_world_pose(clean_cup_pos, np.array([1.0, 0.0, 0.0, 0.0]))
+            snap_used = True
+            print(f"[play_once seed={seed}] snapped cup to under-TCP pose {clean_cup_pos}")
         print(f"[play_once seed={seed}] Attaching cup via FixedJoint …")
-        # Step a few frames so the gripper finishes settling before we attach.
-        for _ in range(10):
-            env.world.step(render=False)
+        # Attach reads the (snapped) poses NOW to pin the joint rest frame, so do
+        # NOT step physics between the snap and the attach (gravity would drop it).
         joint_path = _attach_cup_to_hand(env)
-        # Step a few more frames to let the joint activate.
+        # Step a few frames to let the joint activate.
         for _ in range(5):
             env.world.step(render=False)
 
@@ -401,9 +416,10 @@ def play_once(env, task, planner, cfg: dict, seed: int):
         },
     }
 
-    # Optional: flag whether rigid attach was used in this episode.
+    # Optional: flag whether rigid attach / snap was used in this episode.
     if use_attach:
         meta["grasp_attach_used"] = True
+        meta["grasp_snap_used"] = bool(snap_used)
 
     # Diagnostics sub-dict — included in HDF5 meta and collect_log.json.
     meta["diagnostics"] = {
@@ -443,6 +459,11 @@ def main() -> int:
         help="Output directory (default: from cfg[dataset][output_dir]).",
     )
     args = parser.parse_args()
+
+    # Harden stdio against non-ASCII before any print (prevents UnicodeEncodeError
+    # crashing the process when stdout is redirected to an ASCII pipe).
+    from cup_to_sink.sim_app import _force_utf8_stdio
+    _force_utf8_stdio()
 
     # ── Load config ────────────────────────────────────────────────────────────
     from cup_to_sink import config as cfg_mod

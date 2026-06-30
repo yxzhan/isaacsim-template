@@ -18,10 +18,16 @@ scene:
   # sink_area_surface/visuals had an unresolved reference (kitchen_physics.usd
   # not linked), so no separate basin prim AABB was available; basin bounds are
   # structurally inferred from surrounding prims.
-  # Counter top Z = 0.850 m.  Basin interior estimated ≈ 0.70 m (15 cm recess).
+  # Counter top Z = 0.850 m.  EMPIRICAL FINDING (collect runs): this kitchen
+  # asset has NO physical basin recess at the sink location — a placed cup rests
+  # on the counter surface (rigid-body origin settles ≈0.89 m). Targeting z=0.70
+  # drove the (offset-corrected) gripper place pose below the counter, which is
+  # unreachable, so the cup never arrived. We therefore set the sink target z to
+  # the counter-surface level; "put the cup into the sink" is realised as
+  # delivering the cup to the sink XY region on the counter, gripper released.
   #
   # Format: [x, y, z, qw, qx, qy, qz]  (world frame, meters / unit quat)
-  sink_target_pose_world: [1.565, -0.390, 0.700, 1.0, 0.0, 0.0, 0.0]
+  sink_target_pose_world: [1.565, -0.390, 0.860, 1.0, 0.0, 0.0, 0.0]
 
   # Cup spawn base XY: center of basin on counter top surface.
   # randomization.cup_xlim/ylim are added as offsets to this point.
@@ -99,6 +105,11 @@ grasp:
   # lift/place phases, then removed before the gripper-open action.
   # Set true only if friction alone cannot hold the cup during the lift.
   use_attach: true
+  # When use_attach is on, snap the cup to a clean pose directly under the
+  # gripper TCP just before welding, so the carry transform is deterministic
+  # (the descent can knock a free cup sideways). Expert-generator convenience;
+  # flagged in HDF5 meta as grasp_snap_used.
+  snap_to_gripper: true
 
 cup:
   contact_points:

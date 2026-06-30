@@ -15,6 +15,22 @@ import shutil
 import sys
 
 
+def _force_utf8_stdio() -> None:
+    """Make stdout/stderr tolerate non-ASCII so a stray Unicode char in a
+    print() can never raise UnicodeEncodeError.
+
+    When stdout is redirected to a pipe/file the default encoding is often
+    ASCII; printing characters like '…' or '↔' then raises inside the Isaac
+    Sim event loop and crashes the kit process. backslashreplace guarantees a
+    print never raises regardless of the target encoding.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+        except (AttributeError, ValueError):
+            pass  # not a reconfigurable text stream — best effort only
+
+
 def start(headless: bool = True, width: int = 1280, height: int = 720):
     """Start Isaac Sim and return the SimulationApp instance.
 
@@ -26,6 +42,9 @@ def start(headless: bool = True, width: int = 1280, height: int = 720):
     Returns:
         SimulationApp instance (caller must call .close() when done).
     """
+    # Harden stdout/stderr against non-ASCII before anything prints.
+    _force_utf8_stdio()
+
     # Copy the precompiled kit cache if it is not present yet (same as apartment.py:36-40)
     target_dir = "/isaac-sim/kit/cache"
     source_dir = "/mnt/isaacsim-cache/cache"
