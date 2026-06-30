@@ -447,12 +447,13 @@ def main() -> int:
         help="Path to YAML config file (e.g. cup_to_sink/configs/cup_to_sink.yaml).",
     )
     parser.add_argument(
-        "--num-success", type=int, default=1,
-        help="Number of successful episodes to collect (default: 1).",
+        "--num-success", type=int, default=None,
+        help="Number of successful episodes to collect "
+             "(default: cfg['task']['num_success']).",
     )
     parser.add_argument(
-        "--max-attempts", type=int, default=8,
-        help="Maximum number of seeds to try (default: 8).",
+        "--max-attempts", type=int, default=None,
+        help="Maximum number of seeds to try (default: cfg['task']['max_attempts']).",
     )
     parser.add_argument(
         "--out", default=None,
@@ -469,13 +470,17 @@ def main() -> int:
     from cup_to_sink import config as cfg_mod
     cfg = cfg_mod.load(args.config)
 
+    # CLI overrides config; fall back to config when not provided on the CLI.
+    num_success = args.num_success if args.num_success is not None else int(cfg["task"]["num_success"])
+    max_attempts = args.max_attempts if args.max_attempts is not None else int(cfg["task"]["max_attempts"])
+
     out_dir = Path(args.out) if args.out else (_REPO_ROOT / cfg["dataset"]["output_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"\n[collect_data] Config loaded from: {args.config}")
     print(f"[collect_data] Output dir: {out_dir}")
-    print(f"[collect_data] Target successes: {args.num_success}, "
-          f"max attempts: {args.max_attempts}")
+    print(f"[collect_data] Target successes: {num_success}, "
+          f"max attempts: {max_attempts}")
     print(f"[collect_data] cup_spawn_position: {cfg['scene']['cup_spawn_position']}")
     print(f"[collect_data] contact_point: {cfg['cup']['contact_points'][0]}")
     print(f"[collect_data] sink_target_pose_world: {cfg['scene']['sink_target_pose_world']}")
@@ -501,13 +506,13 @@ def main() -> int:
     failed_seeds: list[int] = []
     result_log: list[dict] = []
 
-    for seed in range(args.max_attempts):
-        if success_count >= args.num_success:
+    for seed in range(max_attempts):
+        if success_count >= num_success:
             break
 
         print(f"\n{'='*64}")
         print(f"[collect_data] Attempt seed={seed}  "
-              f"({success_count}/{args.num_success} successes so far)")
+              f"({success_count}/{num_success} successes so far)")
         print(f"{'='*64}")
 
         t0 = time.time()
@@ -577,13 +582,13 @@ def main() -> int:
     # -- Summary ---------------------------------------------------------------
     print(f"\n{'='*64}")
     print(f"[collect_data] DONE")
-    print(f"  successes collected : {success_count} / {args.num_success}")
-    print(f"  total attempts      : {min(len(result_log), args.max_attempts)}")
+    print(f"  successes collected : {success_count} / {num_success}")
+    print(f"  total attempts      : {min(len(result_log), max_attempts)}")
     print(f"  failed seeds        : {failed_seeds}")
     print(f"{'='*64}\n")
 
     app.close()
-    return 0 if success_count >= args.num_success else 1
+    return 0 if success_count >= num_success else 1
 
 
 def _flush_log(result_log: list, out_dir: Path) -> None:
