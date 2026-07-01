@@ -11,7 +11,7 @@ scene:
   # NOTE: if you move this, you must shift robot.base_position,
   # sink_target_pose_world, cup_spawn_position and all camera positions/look_at
   # by the SAME offset, or the calibration no longer lines up with the sink.
-  lab_usd_position: [0.0, 0.0, 0.0]
+  lab_usd_position: [0.0, 0.0, 0.0701]
   lab_usd_quat: [1.0, 0.0, 0.0, 0.0]
   cup_usd_path: "usd/other/Cup.usd"
   cup_prim_path: "/World/Objects/Cup"
@@ -63,10 +63,10 @@ scene:
   # (X=1.565).  A top-down target at X=1.50 hit a kinematic dead zone in
   # testing; X=1.555 is empirically stable.
   # Z is the counter-top surface; env_builder adjusts for the cup's bbox.
-  cup_spawn_position: [7.05, -5.55, 0.864]
+  cup_spawn_position: [7.05, -5.55, 0.935]
 
   # Z height of the counter top surface (cup sits here before pickup).
-  counter_top_z: 0.864
+  counter_top_z: 0.935
 
 robot:
   name: franka_panda
@@ -78,8 +78,8 @@ robot:
   #   -> sink target (1.565, -0.390, 0.700): ~0.28 m  ok
   #   -> nearest cup (1.565+/-0.10, -0.390+/-0.15, 0.850): max ~0.37 m  ok
   # On the counter, behind the sink (+Y side), facing -Y toward the basin.
-  base_position: [7.05, -5.30, 0.864]
-  base_quat: [0.7071, 0.0, 0.0, -0.7071]
+  base_position: [7.14, -5.30, 0.933]
+  base_quat: [0.0, 0.0, 0.0, 1.0]
   ee_frame: "panda_hand"
   arm_joint_names:
     - panda_joint1
@@ -204,7 +204,7 @@ cameras:
   # the view. All three look at the sink at ~(7.03,-5.88,0.80).
   front:
     prim_path: "/World/Cameras/front"
-    position: [7.03, -6.90, 1.45]
+    position: [7.03, -7.0, 1.85]
     look_at: [7.03, -5.88, 0.80]
     width: 256
     height: 256
@@ -213,7 +213,7 @@ cameras:
     save_depth: true
   left:
     prim_path: "/World/Cameras/left"
-    position: [6.00, -5.85, 1.30]
+    position: [6.00, -5.85, 1.85]
     look_at: [7.03, -5.88, 0.80]
     width: 256
     height: 256
@@ -222,7 +222,7 @@ cameras:
     save_depth: true
   right:
     prim_path: "/World/Cameras/right"
-    position: [8.15, -5.85, 1.30]
+    position: [8.15, -5.85, 1.85]
     look_at: [7.03, -5.88, 0.80]
     width: 256
     height: 256
@@ -233,7 +233,11 @@ cameras:
     prim_path: "/World/Franka/panda_hand/wrist_camera"
     parent_prim_path: "/World/Franka/panda_hand"
     position: [0.0, 0.0, 0.05]
-    quat: [1.0, 0.0, 0.0, 0.0]
+    # Local offset orientation on panda_hand. [0.7071,0,0.7071,0] = +90deg about
+    # Y, which points the camera's optical axis (+X) DOWN the gripper approach so
+    # it looks at the cup. (+/-90 about X only rolls the image / aims at ceiling.)
+    # To roll the image, compose a rotation about X (the optical axis).
+    quat: [0.7071, 0.0, 0.7071, 0.0]
     width: 256
     height: 256
     fov: 70.0
