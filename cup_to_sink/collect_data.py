@@ -457,6 +457,25 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     return success, rec, meta
 
 
+# -- Viewer helper -------------------------------------------------------------
+
+def _set_viewport_camera(camera_prim_path: str) -> None:
+    """Set the active viewport to look through the given camera prim.
+
+    Makes the interactive window show exactly what that camera sees (used with
+    --viewer to mirror the `front` dataset camera). Best-effort: no-op if the
+    viewport utilities are unavailable.
+    """
+    try:
+        from omni.kit.viewport.utility import get_active_viewport
+        vp = get_active_viewport()
+        if vp is not None:
+            vp.camera_path = camera_prim_path
+            print(f"[collect_data] viewport camera -> {camera_prim_path}")
+    except Exception as exc:
+        print(f"[collect_data] could not set viewport camera: {exc}")
+
+
 # -- main ----------------------------------------------------------------------
 
 def main() -> int:
@@ -527,6 +546,12 @@ def main() -> int:
     print("[collect_data] Building planner ...")
     planner = planner_mod.RMPFlowPlanner(env)
     print("[collect_data] Env+task+planner ready.\n")
+
+    # With --viewer, point the Isaac Sim viewport at the `front` camera so the
+    # window shows the same view as the front dataset camera.
+    if args.viewer:
+        front_path = cfg["cameras"].get("front", {}).get("prim_path", "/World/Cameras/front")
+        _set_viewport_camera(front_path)
 
     # -- Collection loop --------------------------------------------------------
     success_count = 0

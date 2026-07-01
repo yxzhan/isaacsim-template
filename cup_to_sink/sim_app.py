@@ -32,7 +32,7 @@ def _force_utf8_stdio() -> None:
 
 
 def start(headless: bool = True, width: int = 1280, height: int = 720,
-          hide_ui: bool = True):
+          hide_ui: bool = False):
     """Start Isaac Sim and return the SimulationApp instance.
 
     Mirrors the startup block from examples/apartment.py:
