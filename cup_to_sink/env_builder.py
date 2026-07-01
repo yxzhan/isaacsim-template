@@ -30,6 +30,7 @@ class Env:
     stage: Any              # Usd.Stage
     cfg: dict               # raw config dict
     robot_base_pose7d: np.ndarray  # [x, y, z, qw, qx, qy, qz]
+    cup_spawn_z: float = 0.0  # cup ORIGIN z that rests its base on the counter
 
 
 def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
@@ -309,4 +310,5 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
         stage=stage,
         cfg=cfg,
         robot_base_pose7d=robot_base_pose7d,
+        cup_spawn_z=spawn_z,
     )

@@ -108,8 +108,11 @@ class Task:
         sink_target_pose7d: np.ndarray = samp["sink_target_pose7d"]
 
         # -- 2. Set cup world pose ---------------------------------------------
-        # Z = counter-top Z + cup_z_offset (offset is 0.0 in default config).
-        cup_z = float(scene_cfg["cup_spawn_position"][2]) + cup_z_offset
+        # Use the cup ORIGIN z that env_builder computed from the cup's bbox so
+        # its BASE rests on the counter (not the raw cup_spawn_position[2], whose
+        # z is the counter surface and would sink the cup into the table because
+        # the cup origin sits above its base).
+        cup_z = float(env.cup_spawn_z) + cup_z_offset
         cup_position = np.array(
             [float(cup_xy[0]), float(cup_xy[1]), cup_z], dtype=float
         )
