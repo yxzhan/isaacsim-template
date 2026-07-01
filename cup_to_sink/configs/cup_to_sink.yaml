@@ -5,10 +5,24 @@ task:
   max_attempts: 500
 
 scene:
-  lab_usd_path: "usd/kitchen/kitchen.usd"
+  # Apartment digital twin (has a real recessed kitchen sink + faucet).
+  lab_usd_path: "usd/apartment/apartmentICRA.usda"
   cup_usd_path: "usd/other/Cup.usd"
   cup_prim_path: "/World/Objects/Cup"
   sink_target_prim_path: "/World/Kitchen/Sink/PlacePoint"
+
+  # Pre-existing loose props on the counter to hide (invisible + no collision)
+  # so they do not obstruct the grasp/place. The faucet/tap stay (structural).
+  hide_prims:
+    - "/World/Kitchen/SM_Cup"
+    - "/World/Kitchen/SM_CerealBox"
+    - "/World/Kitchen/SM_MilkBox"
+    - "/World/Kitchen/SM_SmallBowl"
+  # Sphere-light positions above the apartment kitchen (scene default is dark).
+  light_positions:
+    - [7.0, -5.5, 2.6]
+    - [6.4, -5.5, 2.6]
+    - [7.6, -5.5, 2.6]
 
   # -- Calibrated 2026-06-29 via cup_to_sink/inspect_scene.py ------------------
   # sink_area AABB (world space, meters):
@@ -26,12 +40,16 @@ scene:
   # the counter-surface level; "put the cup into the sink" is realised as
   # delivering the cup to the sink XY region on the counter, gripper released.
   #
+  # Apartment kitchen (calibrated from AABB scan): SM_Counter_Sink basin center
+  # ~(6.99, -5.95), counter top z=0.864, basin floor z~0.69 (real recess). We
+  # target the RIGHT side of the basin (x~7.03) to stay clear of the faucet at
+  # x~6.85. Placed cup drops into the basin.
   # Format: [x, y, z, qw, qx, qy, qz]  (world frame, meters / unit quat)
-  sink_target_pose_world: [1.565, -0.390, 0.860, 1.0, 0.0, 0.0, 0.0]
+  sink_target_pose_world: [7.03, -5.88, 0.800, 1.0, 0.0, 0.0, 0.0]
 
-  # Cup spawn base XY: center of basin on counter top surface.
+  # Cup spawn base XY: clear counter spot between the Franka base and the sink.
   # randomization.cup_xlim/ylim are added as offsets to this point.
-  cup_spawn_base_xy: [1.565, -0.390]
+  cup_spawn_base_xy: [7.05, -5.55]
 
   # Fixed cup spawn position used for env_builder (smoke test, single-episode
   # builds).  Placed at X=1.555 which sits in the reliably-reachable window
@@ -39,10 +57,10 @@ scene:
   # (X=1.565).  A top-down target at X=1.50 hit a kinematic dead zone in
   # testing; X=1.555 is empirically stable.
   # Z is the counter-top surface; env_builder adjusts for the cup's bbox.
-  cup_spawn_position: [1.555, -0.390, 0.850]
+  cup_spawn_position: [7.05, -5.55, 0.864]
 
   # Z height of the counter top surface (cup sits here before pickup).
-  counter_top_z: 0.850
+  counter_top_z: 0.864
 
 robot:
   name: franka_panda
@@ -53,8 +71,9 @@ robot:
   # Franka reach ~ 0.85 m.  Distances from here:
   #   -> sink target (1.565, -0.390, 0.700): ~0.28 m  ok
   #   -> nearest cup (1.565+/-0.10, -0.390+/-0.15, 0.850): max ~0.37 m  ok
-  base_position: [1.325, -0.390, 0.850]
-  base_quat: [1.0, 0.0, 0.0, 0.0]
+  # On the counter, behind the sink (+Y side), facing -Y toward the basin.
+  base_position: [7.05, -5.30, 0.864]
+  base_quat: [0.7071, 0.0, 0.0, -0.7071]
   ee_frame: "panda_hand"
   arm_joint_names:
     - panda_joint1
@@ -154,8 +173,10 @@ success:
   #   counter with no basin recess.  If the basin has a 15 cm recess the cup
   #   settles near 0.700+0.05=0.750 m.  The 0.200 m window covers both cases
   #   without being absurdly wide.  Tighten once the real resting z is known.
-  z_min_offset: -0.03
-  z_max_offset: 0.20
+  # sink_target z=0.80. Basin floor ~0.69, counter top 0.864. Require the cup
+  # to end BELOW the counter top (in the basin): band [0.65, 0.86].
+  z_min_offset: -0.15
+  z_max_offset: 0.06
 
 dataset:
   output_dir: "datasets/cup_to_sink"
@@ -172,10 +193,11 @@ dataset:
   compression: "gzip"
 
 cameras:
+  # Poses calibrated to frame the apartment sink at ~(7.03,-5.88,0.80).
   front:
     prim_path: "/World/Cameras/front"
-    position: [0.0, -1.5, 1.2]
-    quat: [1.0, 0.0, 0.0, 0.0]
+    position: [7.03, -6.90, 1.45]
+    quat: [0.6788, -0.1979, 0.1979, 0.6788]
     width: 256
     height: 256
     fov: 60.0
@@ -183,8 +205,8 @@ cameras:
     save_depth: true
   left:
     prim_path: "/World/Cameras/left"
-    position: [-1.2, 0.0, 1.1]
-    quat: [1.0, 0.0, 0.0, 0.0]
+    position: [6.00, -5.85, 1.30]
+    quat: [0.9745, 0.0033, 0.2239, -0.0142]
     width: 256
     height: 256
     fov: 60.0
@@ -192,8 +214,8 @@ cameras:
     save_depth: true
   right:
     prim_path: "/World/Cameras/right"
-    position: [1.2, 0.0, 1.1]
-    quat: [1.0, 0.0, 0.0, 0.0]
+    position: [8.15, -5.85, 1.30]
+    quat: [0.0131, 0.2083, 0.0028, -0.978]
     width: 256
     height: 256
     fov: 60.0

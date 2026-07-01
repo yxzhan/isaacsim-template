@@ -107,6 +107,23 @@ def _attach_cup_to_hand(env) -> str:
     return joint_path
 
 
+def _set_cup_collision(env, enabled: bool) -> None:
+    """Enable/disable collision on the cup rigid body and its descendants.
+
+    During the welded carry the cup is rigidly attached to the hand, so its
+    collision with the counter/faucet only fights the joint constraint and can
+    lock the arm (observed on the apartment counter). We disable collision for
+    the carry and re-enable it before release so the cup settles in the sink.
+    """
+    from pxr import Usd, UsdPhysics
+    prim = env.stage.GetPrimAtPath(env.cup.prim_path)
+    if not (prim and prim.IsValid()):
+        return
+    for d in [prim] + list(Usd.PrimRange(prim)):
+        if d.HasAPI(UsdPhysics.CollisionAPI):
+            UsdPhysics.CollisionAPI(d).GetCollisionEnabledAttr().Set(bool(enabled))
+
+
 def _detach_cup_from_hand(env, joint_path: str) -> None:
     """Remove the FixedJoint to release the cup before gripper opens.
 
@@ -234,6 +251,8 @@ def play_once(env, task, planner, cfg: dict, seed: int):
         # Attach reads the (snapped) poses NOW to pin the joint rest frame, so do
         # NOT step physics between the snap and the attach (gravity would drop it).
         joint_path = _attach_cup_to_hand(env)
+        # Disable cup collision during the rigid carry (re-enabled before release).
+        _set_cup_collision(env, False)
         # Step a few frames to let the joint activate.
         for _ in range(5):
             env.world.step(render=False)
@@ -328,6 +347,8 @@ def play_once(env, task, planner, cfg: dict, seed: int):
     # -- (Optional) Detach cup before opening gripper --------------------------
     if joint_path is not None:
         print(f"[play_once seed={seed}] Detaching cup before release ...")
+        # Re-enable collision so the released cup rests in the sink basin.
+        _set_cup_collision(env, True)
         _detach_cup_from_hand(env, joint_path)
         # Brief settle so the cup's weight registers before gripper opens.
         for _ in range(5):

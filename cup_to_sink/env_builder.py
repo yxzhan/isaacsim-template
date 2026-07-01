@@ -75,20 +75,36 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
     ground_usd = str(_REPO_ROOT / "usd/Grid/default_environment.usd")
     define_prim("/World/Ground", "Xform").GetReferences().AddReference(ground_usd)
 
-    # -- Kitchen ---------------------------------------------------------------
+    # -- Kitchen / lab scene ---------------------------------------------------
     kitchen_usd = str(_REPO_ROOT / cfg["scene"]["lab_usd_path"])
     create_prim(
         usd_path=kitchen_usd,
         prim_path="/World/Kitchen",
     )
 
+    # -- Hide clutter prims (make invisible + remove collision) ----------------
+    # Pre-existing loose props on the counter would collide with the grasp/place;
+    # scene.hide_prims lists their USD paths to disable for this task.
+    from pxr import UsdGeom, UsdPhysics
+    for hp in cfg["scene"].get("hide_prims", []) or []:
+        prim = stage.GetPrimAtPath(hp)
+        if not (prim and prim.IsValid()):
+            print(f"[env_builder] hide_prims: not found (skipped): {hp}")
+            continue
+        UsdGeom.Imageable(prim).MakeInvisible()
+        # Remove collision on the prim and all descendants so it cannot be hit.
+        for d in [prim] + list(Usd.PrimRange(prim)):
+            if d.HasAPI(UsdPhysics.CollisionAPI):
+                UsdPhysics.CollisionAPI(d).GetCollisionEnabledAttr().Set(False)
+        print(f"[env_builder] hidden clutter: {hp}")
+
     # -- Lights (so raytraced scene is not black) ------------------------------
     define_prim("/World/Lights", "Xform")
-    _light_positions = [
+    _light_positions = cfg["scene"].get("light_positions", [
         (1.5, -0.4, 2.5),
         (0.5,  0.0, 2.5),
         (2.0,  0.5, 2.5),
-    ]
+    ])
     for i, pos in enumerate(_light_positions, start=1):
         create_prim(
             prim_path=f"/World/Lights/kitchen_light_{i}",
