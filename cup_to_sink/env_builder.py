@@ -76,10 +76,18 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
     define_prim("/World/Ground", "Xform").GetReferences().AddReference(ground_usd)
 
     # -- Kitchen / lab scene ---------------------------------------------------
+    # The whole scene can be repositioned via scene.lab_usd_position/quat.
+    # WARNING: moving the scene shifts the sink/counter, so the world-frame
+    # calibration (robot.base_position, sink_target_pose_world, cup_spawn_position,
+    # camera positions/look_at) must be shifted by the SAME amount to stay aligned.
     kitchen_usd = str(_REPO_ROOT / cfg["scene"]["lab_usd_path"])
+    _lab_pos = np.array(cfg["scene"].get("lab_usd_position", [0.0, 0.0, 0.0]), dtype=float)
+    _lab_quat = np.array(cfg["scene"].get("lab_usd_quat", [1.0, 0.0, 0.0, 0.0]), dtype=float)
     create_prim(
         usd_path=kitchen_usd,
         prim_path="/World/Kitchen",
+        position=_lab_pos,
+        orientation=_lab_quat,
     )
 
     # -- Hide clutter prims (make invisible + remove collision) ----------------

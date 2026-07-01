@@ -84,6 +84,7 @@ def main() -> int:
 
     # Prims to report.
     watch = {
+        "scene(lab_usd)": "/World/Kitchen",
         "robot.base": "/World/Franka",
         "cup": cfg["scene"]["cup_prim_path"],
         "sink_marker": "/World/EditMarkers/sink",

@@ -7,6 +7,12 @@ task:
 scene:
   # Apartment digital twin (has a real recessed kitchen sink + faucet).
   lab_usd_path: "usd/apartment/apartmentICRA.usda"
+  # Placement of the WHOLE scene in the world ([x,y,z] and [w,x,y,z] quat).
+  # NOTE: if you move this, you must shift robot.base_position,
+  # sink_target_pose_world, cup_spawn_position and all camera positions/look_at
+  # by the SAME offset, or the calibration no longer lines up with the sink.
+  lab_usd_position: [0.0, 0.0, 0.0]
+  lab_usd_quat: [1.0, 0.0, 0.0, 0.0]
   cup_usd_path: "usd/other/Cup.usd"
   cup_prim_path: "/World/Objects/Cup"
   sink_target_prim_path: "/World/Kitchen/Sink/PlacePoint"
