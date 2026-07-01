@@ -480,6 +480,12 @@ def main() -> int:
         "--out", default=None,
         help="Output directory (default: from cfg[dataset][output_dir]).",
     )
+    parser.add_argument(
+        "--viewer", action="store_true",
+        help="Run non-headless so an Isaac Sim window opens on the virtual "
+             "desktop and you can watch collection. Slower; use for debugging, "
+             "not batch collection.",
+    )
     args = parser.parse_args()
 
     # Harden stdio against non-ASCII before any print (prevents UnicodeEncodeError
@@ -509,7 +515,7 @@ def main() -> int:
 
     # -- Start Isaac Sim --------------------------------------------------------
     from cup_to_sink import sim_app as sim_app_mod
-    app = sim_app_mod.start(headless=True)
+    app = sim_app_mod.start(headless=not args.viewer)
 
     # -- Build env once ---------------------------------------------------------
     from cup_to_sink import env_builder, task as task_mod, planner as planner_mod
