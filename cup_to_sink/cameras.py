@@ -93,10 +93,14 @@ def setup_cameras(cfg_cameras: dict, enabled: list) -> dict:
 
         if has_parent:
             # Apply LOCAL offset so the camera is rigidly attached to its
-            # parent prim (e.g. panda_hand).
+            # parent prim (e.g. panda_hand). camera_axes="usd" makes the `quat`
+            # the RAW USD prim orientation (xformOp:orient) -- i.e. exactly the
+            # value you read/set in the Isaac Sim GUI -- instead of Isaac's
+            # "world" camera convention, so GUI-calibrated quats paste in directly.
             cam.set_local_pose(
                 translation=np.array(ccfg["position"], dtype=float),
                 orientation=np.array(ccfg["quat"], dtype=float),
+                camera_axes="usd",
             )
 
         # Match horizontal FOV: f = (aperture/2) / tan(fov/2)

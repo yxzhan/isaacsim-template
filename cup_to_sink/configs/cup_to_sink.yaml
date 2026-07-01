@@ -233,11 +233,11 @@ cameras:
     prim_path: "/World/Franka/panda_hand/wrist_camera"
     parent_prim_path: "/World/Franka/panda_hand"
     position: [0.0, 0.0, 0.05]
-    # Local offset orientation on panda_hand. [0.7071,0,0.7071,0] = +90deg about
-    # Y, which points the camera's optical axis (+X) DOWN the gripper approach so
-    # it looks at the cup. (+/-90 about X only rolls the image / aims at ceiling.)
-    # To roll the image, compose a rotation about X (the optical axis).
-    quat: [0.7071, 0.0, 0.7071, 0.0]
+    # Local offset orientation on panda_hand, given as the RAW USD prim orient
+    # (cameras.py applies wrist orientation with camera_axes="usd"), so this is
+    # exactly the quaternion you set/read in the Isaac Sim GUI -- paste GUI
+    # values here directly. This one looks down the gripper at the cup.
+    quat: [0.0, 0.7071, 0.7071, 0.0]
     width: 256
     height: 256
     fov: 70.0
