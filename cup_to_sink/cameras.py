@@ -11,6 +11,32 @@ from math import radians, tan
 import numpy as np
 
 
+def _resolve_orientation(ccfg: dict) -> np.ndarray:
+    """Return the camera orientation quat [w,x,y,z].
+
+    If the camera config has ``look_at: [x,y,z]``, compute the orientation that
+    points the camera's optical axis (local +X) from ``position`` at that world
+    point. Otherwise use the explicit ``quat``. Using ``look_at`` is the easy
+    way to aim a camera: you only edit two xyz points.
+    """
+    from math import atan2, asin, degrees
+    import isaacsim.core.utils.numpy.rotations as rot
+
+    if "look_at" in ccfg:
+        pos = np.asarray(ccfg["position"], dtype=float)
+        tgt = np.asarray(ccfg["look_at"], dtype=float)
+        d = tgt - pos
+        n = np.linalg.norm(d)
+        if n < 1e-9:
+            return np.array([1.0, 0.0, 0.0, 0.0])
+        d = d / n
+        yaw = degrees(atan2(d[1], d[0]))
+        pitch = degrees(asin(-max(-1.0, min(1.0, d[2]))))
+        return rot.euler_angles_to_quats(np.array([0.0, pitch, yaw]), degrees=True)
+
+    return np.asarray(ccfg["quat"], dtype=float)
+
+
 def setup_cameras(cfg_cameras: dict, enabled: list) -> dict:
     """Create and configure cameras from the cameras section of the config.
 
@@ -52,11 +78,14 @@ def setup_cameras(cfg_cameras: dict, enabled: list) -> dict:
                 resolution=(ccfg["width"], ccfg["height"]),
             )
         else:
-            # World-space cameras (front, left, right).
+            # World-space cameras (front, left, right). Orientation comes from
+            # a `look_at: [x,y,z]` target if given (easy to tune), else the
+            # explicit `quat`.
+            orientation = _resolve_orientation(ccfg)
             cam = Camera(
                 prim_path=ccfg["prim_path"],
                 position=np.array(ccfg["position"], dtype=float),
-                orientation=np.array(ccfg["quat"], dtype=float),
+                orientation=orientation,
                 resolution=(ccfg["width"], ccfg["height"]),
             )
 

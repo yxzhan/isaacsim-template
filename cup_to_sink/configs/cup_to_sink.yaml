@@ -193,11 +193,13 @@ dataset:
   compression: "gzip"
 
 cameras:
-  # Poses calibrated to frame the apartment sink at ~(7.03,-5.88,0.80).
+  # To aim a world camera, just set its `position` and the `look_at` point
+  # (the sink). The orientation is computed automatically. `fov` widens/narrows
+  # the view. All three look at the sink at ~(7.03,-5.88,0.80).
   front:
     prim_path: "/World/Cameras/front"
     position: [7.03, -6.90, 1.45]
-    quat: [0.6788, -0.1979, 0.1979, 0.6788]
+    look_at: [7.03, -5.88, 0.80]
     width: 256
     height: 256
     fov: 60.0
@@ -206,7 +208,7 @@ cameras:
   left:
     prim_path: "/World/Cameras/left"
     position: [6.00, -5.85, 1.30]
-    quat: [0.9745, 0.0033, 0.2239, -0.0142]
+    look_at: [7.03, -5.88, 0.80]
     width: 256
     height: 256
     fov: 60.0
@@ -215,7 +217,7 @@ cameras:
   right:
     prim_path: "/World/Cameras/right"
     position: [8.15, -5.85, 1.30]
-    quat: [0.0131, 0.2083, 0.0028, -0.978]
+    look_at: [7.03, -5.88, 0.80]
     width: 256
     height: 256
     fov: 60.0
