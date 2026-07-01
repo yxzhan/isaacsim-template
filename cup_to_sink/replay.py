@@ -52,7 +52,7 @@ def _load_config_for_episode(f, override_config: str | None) -> dict:
     return cfg_mod.load(str(tmp))
 
 
-def _set_initial_state(env, task, cup_pose7d, sink_pose7d, robot_qpos) -> None:
+def _set_initial_state(env, task, cup_pose7d, sink_pose7d, robot_qpos, render=False) -> None:
     """Reset the scene to the episode's recorded initial state (no randomization)."""
     from isaacsim.core.utils.types import ArticulationAction
 
@@ -77,18 +77,24 @@ def _set_initial_state(env, task, cup_pose7d, sink_pose7d, robot_qpos) -> None:
     env.franka.set_joint_positions(robot_qpos)
 
     for _ in range(60):
-        env.world.step(render=False)
+        env.world.step(render=render)
 
 
 def replay_episode(episode_path: str, mode: str, action_mode: str,
-                   override_config: str | None) -> bool:
-    """Replay one episode; return whether check_success() holds afterwards."""
+                   override_config: str | None, viewer: bool = False) -> bool:
+    """Replay one episode; return whether check_success() holds afterwards.
+
+    When ``viewer`` is True the sim runs non-headless (an Isaac Sim window opens
+    on the virtual desktop) and every step is rendered so the motion is visible.
+    """
     import h5py
 
     from cup_to_sink import sim_app as sim_app_mod
     sim_app_mod._force_utf8_stdio()
 
-    app = sim_app_mod.start(headless=True)
+    # viewer -> non-headless window (view it via the virtual desktop / VNC).
+    app = sim_app_mod.start(headless=not viewer)
+    render = bool(viewer)
 
     from cup_to_sink import env_builder, task as task_mod
     from cup_to_sink.gripper import width_to_finger_joints
@@ -112,7 +118,7 @@ def replay_episode(episode_path: str, mode: str, action_mode: str,
     env = env_builder.build_env(cfg, app)
     task = task_mod.Task(env, cfg)
 
-    _set_initial_state(env, task, cup0, sink_pose, robot_qpos0)
+    _set_initial_state(env, task, cup0, sink_pose, robot_qpos0, render=render)
     print(f"[replay] reset to recorded initial state; cup={cup0[:3]}, sink={sink_pose[:3]}")
 
     if mode != "action":
@@ -129,7 +135,7 @@ def replay_episode(episode_path: str, mode: str, action_mode: str,
             env.franka.apply_action(ArticulationAction(
                 joint_positions=joint_positions, joint_indices=joint_indices,
             ))
-            env.world.step(render=False)
+            env.world.step(render=render)
     elif action_mode == "ee_pose":
         from cup_to_sink import planner as planner_mod
         planner = planner_mod.RMPFlowPlanner(env)
@@ -142,7 +148,7 @@ def replay_episode(episode_path: str, mode: str, action_mode: str,
             env.franka.apply_action(ArticulationAction(
                 joint_positions=fingers, joint_indices=task.finger_idx,
             ))
-            env.world.step(render=False)
+            env.world.step(render=render)
     else:
         print(f"[replay] unknown action_mode '{action_mode}'. Exiting.")
         app.close()
@@ -150,7 +156,7 @@ def replay_episode(episode_path: str, mode: str, action_mode: str,
 
     # Settle, then evaluate.
     for _ in range(50):
-        env.world.step(render=False)
+        env.world.step(render=render)
 
     success, info = task.check_success()
     cup_final, _ = env.cup.get_world_pose()
@@ -171,12 +177,16 @@ def main() -> int:
                         help="Which recorded action stream to replay.")
     parser.add_argument("--config", default=None,
                         help="Override config path (default: episode's embedded config_yaml).")
+    parser.add_argument("--viewer", action="store_true",
+                        help="Run non-headless with rendering so an Isaac Sim window "
+                             "opens on the virtual desktop (VNC). Slower.")
     args = parser.parse_args()
 
     from cup_to_sink.sim_app import _force_utf8_stdio
     _force_utf8_stdio()
 
-    ok = replay_episode(args.episode, args.mode, args.action_mode, args.config)
+    ok = replay_episode(args.episode, args.mode, args.action_mode, args.config,
+                        viewer=args.viewer)
     print(f"[replay] RESULT: {'SUCCESS' if ok else 'FAIL'}")
     return 0 if ok else 1
 
