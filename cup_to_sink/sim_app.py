@@ -31,7 +31,8 @@ def _force_utf8_stdio() -> None:
             pass  # not a reconfigurable text stream -- best effort only
 
 
-def start(headless: bool = True, width: int = 1280, height: int = 720):
+def start(headless: bool = True, width: int = 1280, height: int = 720,
+          hide_ui: bool = True):
     """Start Isaac Sim and return the SimulationApp instance.
 
     Mirrors the startup block from examples/apartment.py:
@@ -61,7 +62,7 @@ def start(headless: bool = True, width: int = 1280, height: int = 720):
 
     simulation_app = SimulationApp({
         "headless": headless,
-        "hide_ui": True,
+        "hide_ui": hide_ui,
         "width": width,
         "height": height,
         "renderer": "RaytracedLighting",
