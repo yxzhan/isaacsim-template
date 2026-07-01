@@ -51,7 +51,7 @@ scene:
   # target the RIGHT side of the basin (x~7.03) to stay clear of the faucet at
   # x~6.85. Placed cup drops into the basin.
   # Format: [x, y, z, qw, qx, qy, qz]  (world frame, meters / unit quat)
-  sink_target_pose_world: [7.03, -5.88, 0.800, 1.0, 0.0, 0.0, 0.0]
+  sink_target_pose_world: [7.03, -5.88, 0.870, 1.0, 0.0, 0.0, 0.0]
 
   # Cup spawn base XY: clear counter spot between the Franka base and the sink.
   # randomization.cup_xlim/ylim are added as offsets to this point.
