@@ -34,14 +34,23 @@ def main() -> None:
     # Force line-buffered stdout so summary sections are not lost when Isaac Sim
     # terminates the process before the OS pipe buffer is flushed.
     import io
+    import argparse
     try:
         sys.stdout.reconfigure(line_buffering=True)
     except (AttributeError, io.UnsupportedOperation):
         pass
 
+    parser = argparse.ArgumentParser(description="Inspect a scene USD for calibration.")
+    parser.add_argument("--scene", default=KITCHEN_USD,
+                        help="Scene USD path (default: usd/kitchen/kitchen.usd).")
+    parser.add_argument("--viewer", action="store_true",
+                        help="Run non-headless (window on virtual desktop).")
+    args, _ = parser.parse_known_args()
+    scene_usd = args.scene if Path(args.scene).is_absolute() else str(REPO_ROOT / args.scene)
+
     # --- 1. Start Isaac Sim ---
     from cup_to_sink.sim_app import start
-    simulation_app = start(headless=True)
+    simulation_app = start(headless=not args.viewer)
 
     # All isaacsim/pxr/omni imports AFTER SimulationApp is constructed
     import omni
@@ -60,9 +69,9 @@ def main() -> None:
     ground_prim = add_reference_to_stage(usd_path=GROUND_USD, prim_path="/World/Ground")
     print(f"[inspect] Loaded ground: {GROUND_USD}")
 
-    # Load kitchen
-    kitchen_prim = add_reference_to_stage(usd_path=KITCHEN_USD, prim_path="/World/Kitchen")
-    print(f"[inspect] Loaded kitchen: {KITCHEN_USD}")
+    # Load scene
+    kitchen_prim = add_reference_to_stage(usd_path=scene_usd, prim_path="/World/Kitchen")
+    print(f"[inspect] Loaded scene: {scene_usd}")
 
     # Step a few times so physics/transforms settle
     for _ in range(10):
