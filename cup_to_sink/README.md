@@ -25,6 +25,8 @@ cup_to_sink/
   collect_data.py     # entry: play_once() loop -> N successful demos
   replay.py           # entry: action replay of a saved episode
   inspect_scene.py    # entry: boot kitchen, dump prim tree + bounds (scene calibration)
+  edit_scene.py       # entry: full Isaac Sim GUI with the scene loaded (drag & calibrate)
+  convert_to_lerobot.py  # entry: HDF5 episodes -> LeRobot dataset (videos + parquet)
   configs/cup_to_sink.yaml
   tests/              # pytest (pure logic) + sim smoke scripts
 ```
@@ -57,7 +59,7 @@ All commands run from the repo root.
 
 ```bash
 /isaac-sim/python.sh -m cup_to_sink.collect_data \
-    --config cup_to_sink/configs/cup_to_sink.yaml --num-success 1 --max-attempts 3
+    --config cup_to_sink/configs/cup_to_sink.yaml --num-success 3 --max-attempts 5 --viewer
 ```
 
 Outputs (`datasets/cup_to_sink/`, git-ignored):
@@ -87,6 +89,42 @@ Physics replay is not perfectly deterministic — use it as a validation/debug t
 Boots the kitchen and prints the prim tree + world AABBs of counter/sink/etc., plus
 suggested `sink_target_pose_world` / `robot.base_position` / cup spawn coordinates.
 Use this to recalibrate `configs/cup_to_sink.yaml` if the USD scene changes.
+
+### Edit the scene in the Isaac Sim GUI
+
+```bash
+/isaac-sim/python.sh -m cup_to_sink.edit_scene \
+    --config cup_to_sink/configs/cup_to_sink.yaml
+```
+
+Opens the full interactive Isaac Sim editor (view via the VNC virtual desktop) with
+the scene loaded and physics paused. Drag prims in the viewport (`/World/Franka`,
+`/World/Objects/Cup`, `/World/EditMarkers/sink`, `/World/Cameras/*`); their world
+poses are printed every few seconds in config-ready format (`[w,x,y,z]` quats) so
+you can paste them straight into `configs/cup_to_sink.yaml`. Close the Isaac Sim
+window to exit.
+
+### Convert to LeRobot format
+
+Runs under the system Python (`python3`), **not** `/isaac-sim/python.sh`; needs
+`pip install lerobot h5py` once.
+
+```bash
+python3 cup_to_sink/convert_to_lerobot.py \
+    --input datasets/cup_to_sink \
+    --output datasets/cup_to_sink_lerobot
+```
+
+Mapping: `observation.state` = 7 joint pos + gripper width (8d),
+`action` = `actions/policy_action_command` (8d), the four RGB cameras become
+AV1-encoded `video` features, `task` = the language instruction. `--fps` defaults
+to 25 (200 Hz physics / `record_every=8`). Depth images are not converted
+(LeRobot video features are uint8 RGB only). Load the result with:
+
+```python
+from lerobot.datasets.lerobot_dataset import LeRobotDataset
+ds = LeRobotDataset("yxzhan/cup_to_sink", root="datasets/cup_to_sink_lerobot")
+```
 
 ### Tests
 

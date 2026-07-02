@@ -210,8 +210,8 @@ cameras:
     prim_path: "/World/Cameras/front"
     position: [7.03, -7.0, 1.85]
     look_at: [7.03, -5.5, 0.95]
-    width: 256
-    height: 256
+    width: 1280
+    height: 720
     fov: 60.0
     save_rgb: true
     save_depth: true
@@ -219,8 +219,8 @@ cameras:
     prim_path: "/World/Cameras/left"
     position: [5.8, -5.5, 1.85]
     look_at: [7.03, -5.5, 0.95]
-    width: 256
-    height: 256
+    width: 1280
+    height: 720
     fov: 60.0
     save_rgb: true
     save_depth: true
@@ -228,22 +228,22 @@ cameras:
     prim_path: "/World/Cameras/right"
     position: [8.15, -5.5, 1.85]
     look_at: [7.03, -5.5, 0.95]
-    width: 256
-    height: 256
+    width: 1280
+    height: 720
     fov: 60.0
     save_rgb: true
     save_depth: true
   wrist:
     prim_path: "/World/Franka/panda_hand/wrist_camera"
     parent_prim_path: "/World/Franka/panda_hand"
-    position: [0.0, 0.0, 0.05]
+    position: [0.0, 0.0, 0.105]
     # Local offset orientation on panda_hand, given as the RAW USD prim orient
     # (cameras.py applies wrist orientation with camera_axes="usd"), so this is
     # exactly the quaternion you set/read in the Isaac Sim GUI -- paste GUI
     # values here directly. This one looks down the gripper at the cup.
     quat: [0.0, 0.7071, 0.7071, 0.0]
-    width: 256
-    height: 256
-    fov: 70.0
+    width: 1280
+    height: 720
+    fov: 90.0
     save_rgb: true
     save_depth: true

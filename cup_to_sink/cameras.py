@@ -90,6 +90,7 @@ def setup_cameras(cfg_cameras: dict, enabled: list) -> dict:
             )
 
         cam.initialize()
+        cam.set_clipping_range(near_distance=0.01, far_distance=20)
 
         if has_parent:
             # Apply LOCAL offset so the camera is rigidly attached to its
