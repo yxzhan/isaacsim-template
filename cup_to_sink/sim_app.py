@@ -73,5 +73,8 @@ def start(headless: bool = True, width: int = 1280, height: int = 720,
     sys.stdout = original_stdout
     sys.stderr = original_stderr
 
+    from isaacsim.core.utils.extensions import enable_extension
+    enable_extension("omni.physx.supportui")
+
     print("SimulationApp Ready!")
     return simulation_app

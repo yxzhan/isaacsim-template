@@ -51,11 +51,11 @@ scene:
   # target the RIGHT side of the basin (x~7.03) to stay clear of the faucet at
   # x~6.85. Placed cup drops into the basin.
   # Format: [x, y, z, qw, qx, qy, qz]  (world frame, meters / unit quat)
-  sink_target_pose_world: [7.03, -5.88, 0.870, 1.0, 0.0, 0.0, 0.0]
+  sink_target_pose_world: [7.03, -5.85, 0.86, 0.70710678, 0.0, 0.0, -0.7071067]
 
   # Cup spawn base XY: clear counter spot between the Franka base and the sink.
   # randomization.cup_xlim/ylim are added as offsets to this point.
-  cup_spawn_base_xy: [7.05, -5.55]
+  cup_spawn_base_xy: [6.8, -5.55]
 
   # Fixed cup spawn position used for env_builder (smoke test, single-episode
   # builds).  Placed at X=1.555 which sits in the reliably-reachable window
@@ -63,7 +63,7 @@ scene:
   # (X=1.565).  A top-down target at X=1.50 hit a kinematic dead zone in
   # testing; X=1.555 is empirically stable.
   # Z is the counter-top surface; env_builder adjusts for the cup's bbox.
-  cup_spawn_position: [7.05, -5.55, 0.935]
+  cup_spawn_position: [6.8, -5.55, 0.935]
 
   # Z height of the counter top surface (cup sits here before pickup).
   counter_top_z: 0.935
@@ -93,9 +93,9 @@ robot:
     - panda_finger_joint1
     - panda_finger_joint2
   finger_joint_open: 0.04
-  finger_joint_closed: 0.0
+  finger_joint_closed: 0.005
   gripper_open_width: 0.08
-  gripper_closed_width: 0.0
+  gripper_closed_width: 0.01
   policy_gripper_action: "width"
   curobo_robot_cfg: "/path/to/franka.yml"
 
@@ -105,13 +105,13 @@ randomization:
   # Tightened to +/-0.02 m for initial collection so every seed spawns in the
   # confirmed-reachable window (X in [1.535, 1.575], Y in [-0.410, -0.370]).
   # Widen to +/-0.05-0.10 after a working grasp pose is confirmed.
-  cup_xlim: [-0.02, 0.02]
-  cup_ylim: [-0.02, 0.02]
+  cup_xlim: [-0.25, 0.02]
+  cup_ylim: [-0.02, 0.25]
   cup_yaw_range: [-3.14, 3.14]
   cup_z_offset_range: [0.0, 0.0]
   sink_target_sample_xy: true
-  sink_target_xlim: [-0.02, 0.02]
-  sink_target_ylim: [-0.02, 0.02]
+  sink_target_xlim: [-0.001, 0.001]
+  sink_target_ylim: [-0.001, 0.001]
   robot_initial_qpos_mode: "default"
   robot_default_qpos: [0.0, -0.4, 0.0, -2.2, 0.0, 2.0, 0.8]
   settle_steps: 100
@@ -134,7 +134,7 @@ grasp:
   # gripper TCP just before welding, so the carry transform is deterministic
   # (the descent can knock a free cup sideways). Expert-generator convenience;
   # flagged in HDF5 meta as grasp_snap_used.
-  snap_to_gripper: true
+  snap_to_gripper: false
 
 cup:
   contact_points:
@@ -148,7 +148,7 @@ cup:
     # The x=y=0 centering keeps the contact symmetric about the cup axis, so
     # any yaw randomisation on the cup does not bias the approach.
     - name: top_down_grasp
-      position_obj: [0.0, 0.0, 0.05]
+      position_obj: [0.0, 0.05, 0.032]
       quat_obj: [0.0, 0.0, 1.0, 0.0]
       pregrasp_distance: 0.12
   functional_points:
@@ -163,8 +163,12 @@ planner:
   rot_tol: 0.1
 
 motion:
-  lift_height: 0.10
-  preplace_distance: 0.06
+  # lift straight up after grasp, then transit to a preplace waypoint ABOVE the
+  # sink, then descend into the basin. preplace_distance must lift the cup well
+  # ABOVE the counter top (0.934) so the horizontal transit does not scrape the
+  # table when the cup starts far from the sink. sink_z(0.87)+0.16 = 1.03 > 0.934.
+  lift_height: 0.12
+  preplace_distance: 0.2
   retreat_height: 0.08
   gripper_steps: 200
 
@@ -205,7 +209,7 @@ cameras:
   front:
     prim_path: "/World/Cameras/front"
     position: [7.03, -7.0, 1.85]
-    look_at: [7.03, -5.88, 0.80]
+    look_at: [7.03, -5.5, 0.95]
     width: 256
     height: 256
     fov: 60.0
@@ -213,8 +217,8 @@ cameras:
     save_depth: true
   left:
     prim_path: "/World/Cameras/left"
-    position: [6.00, -5.85, 1.85]
-    look_at: [7.03, -5.88, 0.80]
+    position: [5.8, -5.5, 1.85]
+    look_at: [7.03, -5.5, 0.95]
     width: 256
     height: 256
     fov: 60.0
@@ -222,8 +226,8 @@ cameras:
     save_depth: true
   right:
     prim_path: "/World/Cameras/right"
-    position: [8.15, -5.85, 1.85]
-    look_at: [7.03, -5.88, 0.80]
+    position: [8.15, -5.5, 1.85]
+    look_at: [7.03, -5.5, 0.95]
     width: 256
     height: 256
     fov: 60.0

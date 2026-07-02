@@ -103,22 +103,52 @@ def save_frame_montage(f, t: int, out: str) -> None:
 
 
 def export_video(f, cam: str, out: str, fps: int = 25) -> None:
-    """Export a camera's RGB stream to an MP4 (cv2, no external ffmpeg needed)."""
-    import cv2
+    """Export a camera's RGB stream to a browser-playable H.264 MP4.
+
+    Browsers (and JupyterLab's preview) need H.264/AVC in MP4; the old cv2 'mp4v'
+    (MPEG-4 Part 2) only plays in desktop players like VLC. We write H.264 via
+    imageio + the bundled ffmpeg (imageio-ffmpeg). Fallbacks: cv2 mp4v, then GIF.
+    """
+    import os
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
 
     rgb = f[f"observations/images/{cam}/rgb"]        # (T,H,W,3) uint8
-    T, H, W, _ = rgb.shape
-    writer = cv2.VideoWriter(out, cv2.VideoWriter_fourcc(*"mp4v"), fps, (W, H))
-    if not writer.isOpened():
-        print("[inspect] cv2 mp4v writer failed; falling back to GIF via imageio")
-        import imageio
-        imageio.mimsave(out.replace(".mp4", ".gif"), [rgb[t] for t in range(T)], fps=fps)
-        print(f"[inspect] saved {out.replace('.mp4', '.gif')}")
+    T = rgb.shape[0]
+    frames = [rgb[t] for t in range(T)]
+
+    # 1) Preferred: H.264 MP4 (browser-compatible) via imageio-ffmpeg.
+    try:
+        import imageio.v2 as imageio
+        imageio.mimwrite(
+            out, frames, fps=fps, codec="libx264", quality=8,
+            macro_block_size=1,           # allow non-multiple-of-16 sizes (256 is fine)
+            output_params=["-pix_fmt", "yuv420p"],  # required for broad browser support
+        )
+        print(f"[inspect] saved {cam} H.264 MP4 ({T} frames @ {fps}fps) -> {out}")
         return
-    for t in range(T):
-        writer.write(cv2.cvtColor(rgb[t], cv2.COLOR_RGB2BGR))
-    writer.release()
-    print(f"[inspect] saved {cam} RGB video ({T} frames @ {fps}fps) -> {out}")
+    except Exception as exc:
+        print(f"[inspect] H.264 export unavailable ({exc}); trying cv2 mp4v")
+
+    # 2) Fallback: cv2 mp4v (plays in VLC, not most browsers).
+    try:
+        import cv2
+        H, W = rgb.shape[1], rgb.shape[2]
+        writer = cv2.VideoWriter(out, cv2.VideoWriter_fourcc(*"mp4v"), fps, (W, H))
+        if writer.isOpened():
+            for fr in frames:
+                writer.write(cv2.cvtColor(fr, cv2.COLOR_RGB2BGR))
+            writer.release()
+            print(f"[inspect] saved {cam} mp4v MP4 (VLC only) -> {out}")
+            return
+        writer.release()
+    except Exception as exc:
+        print(f"[inspect] cv2 mp4v failed ({exc}); falling back to GIF")
+
+    # 3) Last resort: animated GIF (works everywhere, larger).
+    import imageio.v2 as imageio
+    gif = out.rsplit(".", 1)[0] + ".gif"
+    imageio.mimsave(gif, frames, fps=fps)
+    print(f"[inspect] saved {cam} GIF -> {gif}")
 
 
 def main() -> int:

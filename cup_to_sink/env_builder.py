@@ -227,8 +227,11 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
     cup_mesh_prim = stage.GetPrimAtPath(cup_mesh_path)
     if cup_mesh_prim and cup_mesh_prim.IsValid():
         # setRigidBody on SM_Cup is idempotent -- it (re-)applies RigidBodyAPI
-        # and ensures a convexHull collision shape is present.
-        physx_utils.setRigidBody(cup_mesh_prim, "convexHull", False)
+        # and ensures a collision shape is present.
+        # Collision approximation options -- uncomment ONE to test, comment the rest:
+        # physx_utils.setRigidBody(cup_mesh_prim, "convexHull", False)          # solid convex shell (fills the cup opening)
+        # physx_utils.setRigidBody(cup_mesh_prim, "convexDecomposition", False)  # multiple convex hulls -> handles concavity (hollow cup)
+        # physx_utils.setRigidBody(cup_mesh_prim, "sdf", False)                  # signed-distance-field -> closest to the true mesh (heaviest)
         UsdShade.MaterialBindingAPI.Apply(cup_mesh_prim).Bind(
             grip_mat,
             bindingStrength=UsdShade.Tokens.strongerThanDescendants,
@@ -236,7 +239,10 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
         )
         rigid_cup_path = cup_mesh_path
     else:
-        physx_utils.setRigidBody(cup_prim_ref, "convexHull", False)
+        # Collision approximation options -- uncomment ONE to test, comment the rest:
+        # physx_utils.setRigidBody(cup_prim_ref, "convexHull", False)          # solid convex shell (fills the cup opening)
+        # physx_utils.setRigidBody(cup_prim_ref, "convexDecomposition", False)  # multiple convex hulls -> handles concavity (hollow cup)
+        # physx_utils.setRigidBody(cup_prim_ref, "sdf", False)                  # signed-distance-field -> closest to the true mesh (heaviest)
         UsdShade.MaterialBindingAPI.Apply(cup_prim_ref).Bind(
             grip_mat,
             bindingStrength=UsdShade.Tokens.strongerThanDescendants,
