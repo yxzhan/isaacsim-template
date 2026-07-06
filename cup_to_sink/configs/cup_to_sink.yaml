@@ -51,11 +51,11 @@ scene:
   # target the RIGHT side of the basin (x~7.03) to stay clear of the faucet at
   # x~6.85. Placed cup drops into the basin.
   # Format: [x, y, z, qw, qx, qy, qz]  (world frame, meters / unit quat)
-  sink_target_pose_world: [7.03, -5.85, 0.86, 0.70710678, 0.0, 0.0, -0.7071067]
+  sink_target_pose_world: [7.03, -5.9, 0.86, 0.70710678, 0.0, 0.0, -0.7071067]
 
   # Cup spawn base XY: clear counter spot between the Franka base and the sink.
   # randomization.cup_xlim/ylim are added as offsets to this point.
-  cup_spawn_base_xy: [6.8, -5.55]
+  cup_spawn_base_xy: [6.8, -5.30]
 
   # Fixed cup spawn position used for env_builder (smoke test, single-episode
   # builds).  Placed at X=1.555 which sits in the reliably-reachable window
@@ -63,7 +63,7 @@ scene:
   # (X=1.565).  A top-down target at X=1.50 hit a kinematic dead zone in
   # testing; X=1.555 is empirically stable.
   # Z is the counter-top surface; env_builder adjusts for the cup's bbox.
-  cup_spawn_position: [6.8, -5.55, 0.935]
+  cup_spawn_position: [6.8, -5.30, 0.935]
 
   # Z height of the counter top surface (cup sits here before pickup).
   counter_top_z: 0.935
@@ -79,7 +79,9 @@ robot:
   #   -> nearest cup (1.565+/-0.10, -0.390+/-0.15, 0.850): max ~0.37 m  ok
   # On the counter, behind the sink (+Y side), facing -Y toward the basin.
   base_position: [7.14, -5.30, 0.933]
-  base_quat: [0.0, 0.0, 0.0, 1.0]
+  base_quat: [0.0, 0.0, 0.0, -1.0]
+  # base_quat: [0.70710678, 0.0, 0.0, -0.7071067]
+  # base_quat: [0.3826834, 0.0, 0.0, -0.9238795]
   ee_frame: "panda_hand"
   arm_joint_names:
     - panda_joint1
@@ -93,9 +95,9 @@ robot:
     - panda_finger_joint1
     - panda_finger_joint2
   finger_joint_open: 0.04
-  finger_joint_closed: 0.005
+  finger_joint_closed: 0.00
   gripper_open_width: 0.08
-  gripper_closed_width: 0.01
+  gripper_closed_width: 0.00
   policy_gripper_action: "width"
   curobo_robot_cfg: "/path/to/franka.yml"
 
@@ -105,9 +107,10 @@ randomization:
   # Tightened to +/-0.02 m for initial collection so every seed spawns in the
   # confirmed-reachable window (X in [1.535, 1.575], Y in [-0.410, -0.370]).
   # Widen to +/-0.05-0.10 after a working grasp pose is confirmed.
-  cup_xlim: [-0.25, 0.02]
-  cup_ylim: [-0.02, 0.25]
+  cup_xlim: [-0.3, 0.01]
+  cup_ylim: [-0.3, 0.3]
   cup_yaw_range: [-3.14, 3.14]
+  # cup_yaw_range: [-3.14, -1.57]
   cup_z_offset_range: [0.0, 0.0]
   sink_target_sample_xy: true
   sink_target_xlim: [-0.001, 0.001]
@@ -129,7 +132,7 @@ grasp:
   # panda_hand and the cup rigid body so the cup is rigidly carried during the
   # lift/place phases, then removed before the gripper-open action.
   # Set true only if friction alone cannot hold the cup during the lift.
-  use_attach: true
+  use_attach: false
   # When use_attach is on, snap the cup to a clean pose directly under the
   # gripper TCP just before welding, so the carry transform is deterministic
   # (the descent can knock a free cup sideways). Expert-generator convenience;
@@ -143,12 +146,14 @@ cup:
     # With this orientation the local +Z axis (RMPflow approach axis) points
     # downward in world frame, so the pregrasp waypoint is above and the arm
     # descends to grasp.
-    # position_obj z=0.05 places the right_gripper 5 cm above the cup rigid-
-    # body origin (approximately mid-cup height after settling on the counter).
-    # The x=y=0 centering keeps the contact symmetric about the cup axis, so
-    # any yaw randomisation on the cup does not bias the approach.
+    # position_obj y=0.041 centres the pinch axis on the cup WALL: measured
+    # from the SM_Cup mesh, the wall at grasp height z=0.032 spans
+    # y=0.0358..0.0460 (10 mm thick), so closing to gripper_closed_width=0.006
+    # squeezes ~2 mm into each wall face.  y=0.05 (previous value) put the
+    # axis outboard of the outer wall face -- the fingers closed on air and
+    # the cup slipped out during the carry (friction grasp, use_attach=false).
     - name: top_down_grasp
-      position_obj: [0.0, 0.05, 0.032]
+      position_obj: [0.0, 0.041, 0.032]
       quat_obj: [0.0, 0.0, 1.0, 0.0]
       pregrasp_distance: 0.12
   functional_points:
@@ -167,10 +172,10 @@ motion:
   # sink, then descend into the basin. preplace_distance must lift the cup well
   # ABOVE the counter top (0.934) so the horizontal transit does not scrape the
   # table when the cup starts far from the sink. sink_z(0.87)+0.16 = 1.03 > 0.934.
-  lift_height: 0.12
-  preplace_distance: 0.2
-  retreat_height: 0.08
-  gripper_steps: 200
+  lift_height: 0.18
+  preplace_distance: 0.25
+  retreat_height: 0.2
+  gripper_steps: 250
 
 success:
   # xy_threshold: cup must land within 6 cm of sink_target XY.
@@ -196,7 +201,7 @@ dataset:
   record_every: 8
   enabled_cameras: ["front", "left", "right", "wrist"]
   save_rgb: true
-  save_depth: true
+  save_depth: false
   image_width: 256
   image_height: 256
   depth_format: "uint16_mm"
@@ -210,8 +215,8 @@ cameras:
     prim_path: "/World/Cameras/front"
     position: [7.03, -7.0, 1.85]
     look_at: [7.03, -5.5, 0.95]
-    width: 1280
-    height: 720
+    width: 256
+    height: 256
     fov: 60.0
     save_rgb: true
     save_depth: true
@@ -219,8 +224,8 @@ cameras:
     prim_path: "/World/Cameras/left"
     position: [5.8, -5.5, 1.85]
     look_at: [7.03, -5.5, 0.95]
-    width: 1280
-    height: 720
+    width: 256
+    height: 256
     fov: 60.0
     save_rgb: true
     save_depth: true
@@ -228,22 +233,22 @@ cameras:
     prim_path: "/World/Cameras/right"
     position: [8.15, -5.5, 1.85]
     look_at: [7.03, -5.5, 0.95]
-    width: 1280
-    height: 720
+    width: 256
+    height: 256
     fov: 60.0
     save_rgb: true
     save_depth: true
   wrist:
     prim_path: "/World/Franka/panda_hand/wrist_camera"
     parent_prim_path: "/World/Franka/panda_hand"
-    position: [0.0, 0.0, 0.105]
+    position: [0.07, 0.0, 0]
     # Local offset orientation on panda_hand, given as the RAW USD prim orient
     # (cameras.py applies wrist orientation with camera_axes="usd"), so this is
     # exactly the quaternion you set/read in the Isaac Sim GUI -- paste GUI
     # values here directly. This one looks down the gripper at the cup.
     quat: [0.0, 0.7071, 0.7071, 0.0]
-    width: 1280
-    height: 720
-    fov: 90.0
+    width: 256
+    height: 256
+    fov: 120.0
     save_rgb: true
     save_depth: true

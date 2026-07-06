@@ -145,6 +145,18 @@ class RMPFlowPlanner(Planner):
         # Instantiate RMPflow
         self._rmpflow = RmpFlow(**rmp_config)
 
+        # Kinematic rollout: integrate RMPflow's own internal state instead of
+        # feeding back measured joint states every step.  With the friction
+        # grasp (use_attach=false) the closed loop "measured state -> RMPflow
+        # -> PD -> physics" is unstable under the unmodeled payload: the
+        # carried cup's contact wrench excites growing null-space oscillation
+        # (probe: EE wandered 10-20 cm off target, wrist joints wound toward
+        # limits, grip pried open).  Open-loop rollout keeps the planned
+        # trajectory deterministic; the physical arm PD-tracks it to ~1e-4 rad.
+        # reached() still uses the MEASURED EE pose, so convergence of the
+        # real robot (not just the rollout) is what gates each move.
+        self._rmpflow.set_ignore_state_updates(True)
+
         # -- Set robot base pose ----------------------------------------------
         # The Franka is NOT at the world origin (base ~ [1.325, -0.390, 0.850]).
         # Without this call RMPflow targets would be computed in robot-base frame

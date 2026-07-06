@@ -59,7 +59,7 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
     from isaacsim.robot.manipulators import SingleManipulator
     from isaacsim.robot.manipulators.grippers import ParallelGripper
     from omni.physx.scripts import utils as physx_utils
-    from pxr import Usd, UsdGeom, UsdShade, UsdPhysics, Gf
+    from pxr import Usd, UsdGeom, UsdShade, UsdPhysics, PhysxSchema, Gf
 
     from cup_to_sink.cameras import setup_cameras
 
@@ -136,6 +136,29 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
     franka_prim.GetVariantSet("Gripper").SetVariantSelection("AlternateFinger")
     franka_prim.GetVariantSet("Mesh").SetVariantSelection("Quality")
 
+    # -- Finger drives: required for the friction grasp (use_attach=false) -----
+    # The stock franka.usd gripper drive cannot hold a carried object:
+    # finger_joint1 ships with stiffness=400 / maxForce=7.2 N and
+    # finger_joint2 has NO linear drive at all (kp=0, maxEffort=0 -> limp).
+    # Probing the grasp showed the 0.12 kg cup prying the fingers open during
+    # the lift (width 11 mm -> 31 mm -> dropped).  Author position drives on
+    # BOTH finger joints.  Gains are deliberately moderate: at kp=1e4 the
+    # stiff two-finger squeeze of the rigid wall pumped contact energy into
+    # the arm and RMPFlow oscillated (EE wandered +-20 cm during the carry).
+    # kp=2e3 gives ~2 N per finger on the 10 mm wall (mu=2 -> ~8 N hold vs
+    # 1.2 N cup weight); 20 N cap matches the real Panda's default grasp force.
+    for _fj_name in ("panda_finger_joint1", "panda_finger_joint2"):
+        _fj_prim = stage.GetPrimAtPath(
+            f"{franka_prim_path}/panda_hand/{_fj_name}"
+        )
+        if not (_fj_prim and _fj_prim.IsValid()):
+            print(f"[env_builder] WARNING: finger joint not found: {_fj_name}")
+            continue
+        _drv = UsdPhysics.DriveAPI.Apply(_fj_prim, "linear")
+        _drv.CreateStiffnessAttr().Set(2.0e3)
+        _drv.CreateDampingAttr().Set(100.0)
+        _drv.CreateMaxForceAttr().Set(20.0)
+
     # action_deltas=None so "close" commands the FULL closed target in one shot
     # and holds it -- the position error against the grasped object becomes the
     # grip force.
@@ -171,6 +194,15 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
     _gm.CreateStaticFrictionAttr().Set(2.0)
     _gm.CreateDynamicFrictionAttr().Set(2.0)
     _gm.CreateRestitutionAttr().Set(0.0)
+    # Compliant contact: a rigid two-finger squeeze of the rigid cup wall
+    # chatters at 200 Hz, and that excitation drove RMPFlow's joint-limit
+    # avoidance into a stall 20 cm from its target during the carry (probe:
+    # q4 margin 0.57 -> 0.09 rad while holding the cup, recovered on release).
+    # A spring-damper contact (k=2e4 -> ~0.2 mm deflection at the ~4 N grip)
+    # absorbs the chatter; it emulates the rubber finger pads.
+    _gpm = PhysxSchema.PhysxMaterialAPI.Apply(grip_mat.GetPrim())
+    _gpm.CreateCompliantContactStiffnessAttr().Set(2.0e4)
+    _gpm.CreateCompliantContactDampingAttr().Set(500.0)
     for _finger_path in [
         f"{franka_prim_path}/panda_leftfinger",
         f"{franka_prim_path}/panda_rightfinger",
@@ -249,6 +281,59 @@ def build_env(cfg: dict, simulation_app: Any) -> Env:  # noqa: ARG001
             materialPurpose="physics",
         )
         rigid_cup_path = cup_prim_path
+
+    # -- Carry-stability tuning (friction grasp, use_attach=false) -------------
+    # The cup is held by pinching its ~6 mm wall between position-driven
+    # fingers.  Default solver/offset settings make those thin-wall contacts
+    # oscillate at 200 Hz (visible jitter) and eject the cup violently when a
+    # finger penetrates the wall:
+    #   * higher solver iteration counts let the finger-wall contact pair
+    #     converge instead of oscillating,
+    #   * maxDepenetrationVelocity caps the recovery impulse when a finger
+    #     overlaps the wall (no more "popping" out of the grasp),
+    #   * contact/rest offsets are shrunk because the defaults are large
+    #     relative to the 6 mm wall, which creates phantom contacts on both
+    #     wall faces at once.
+    _cup_rb_prim = stage.GetPrimAtPath(rigid_cup_path)
+    _cup_rb = PhysxSchema.PhysxRigidBodyAPI.Apply(_cup_rb_prim)
+    _cup_rb.CreateSolverPositionIterationCountAttr().Set(32)
+    _cup_rb.CreateSolverVelocityIterationCountAttr().Set(8)
+    _cup_rb.CreateMaxDepenetrationVelocityAttr().Set(1.0)
+
+    _grasp_collision_prims = [
+        p for p in Usd.PrimRange(_cup_rb_prim) if p.HasAPI(UsdPhysics.CollisionAPI)
+    ]
+    for _finger_path in [
+        f"{franka_prim_path}/panda_leftfinger",
+        f"{franka_prim_path}/panda_rightfinger",
+    ]:
+        _fprim = stage.GetPrimAtPath(_finger_path)
+        if _fprim and _fprim.IsValid():
+            _grasp_collision_prims += [
+                p for p in Usd.PrimRange(_fprim) if p.HasAPI(UsdPhysics.CollisionAPI)
+            ]
+    for _cp in _grasp_collision_prims:
+        _pc = PhysxSchema.PhysxCollisionAPI.Apply(_cp)
+        _pc.CreateContactOffsetAttr().Set(0.002)
+        _pc.CreateRestOffsetAttr().Set(0.0)
+
+    # The articulation solves the same contact pairs; raise its budget too
+    # (the API must sit on the prim carrying ArticulationRootAPI).
+    _art_root = next(
+        (
+            p
+            for p in Usd.PrimRange(stage.GetPrimAtPath(franka_prim_path))
+            if p.HasAPI(UsdPhysics.ArticulationRootAPI)
+        ),
+        None,
+    )
+    if _art_root is not None:
+        _art = PhysxSchema.PhysxArticulationAPI.Apply(_art_root)
+        _art.CreateSolverPositionIterationCountAttr().Set(32)
+        _art.CreateSolverVelocityIterationCountAttr().Set(8)
+    else:
+        print("[env_builder] WARNING: no ArticulationRootAPI found under "
+              f"{franka_prim_path}; articulation solver iterations not raised.")
 
     cup = world.scene.add(
         SingleRigidPrim(
