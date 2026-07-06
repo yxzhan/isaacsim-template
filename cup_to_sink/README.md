@@ -37,10 +37,14 @@ Everything runs under the Isaac Sim Python (`/isaac-sim/python.sh`). One extra
 dependency is needed for HDF5:
 
 ```bash
-/isaac-sim/python.sh -m pip install h5py
+/isaac-sim/python.sh -m pip install h5py imageio-ffmpeg
 ```
 
-> Note: if the container is recreated, re-run the `pip install h5py`. cuRobo is **not**
+(`imageio-ffmpeg` is only needed by `eval_policy` to write browser-playable
+H.264 rollout videos; without it the videos fall back to mp4v, which browsers
+cannot play.)
+
+> Note: if the container is recreated, re-run the `pip install`. cuRobo is **not**
 > required for Phase 1.
 
 ## Running
@@ -103,6 +107,36 @@ the scene loaded and physics paused. Drag prims in the viewport (`/World/Franka`
 poses are printed every few seconds in config-ready format (`[w,x,y,z]` quats) so
 you can paste them straight into `configs/cup_to_sink.yaml`. Close the Isaac Sim
 window to exit.
+
+### Evaluate a trained policy (ACT / Diffusion)
+
+Closed-loop rollout of a LeRobot checkpoint (e.g. the ACT model in
+`kitchen_imitation_learning/checkpoints/act_100000/pretrained_model`) with
+success-rate reporting. Two processes, because lerobot lives in the system
+Python and the sim lives in the Isaac Sim Python:
+
+```bash
+# Terminal 1 — policy server (system python3, has lerobot):
+python3 -m cup_to_sink.policy_server \
+    --checkpoint kitchen_imitation_learning/checkpoints/act_100000/pretrained_model
+
+# Terminal 2 — sim rollout (Isaac Sim python):
+/isaac-sim/python.sh -m cup_to_sink.eval_policy \
+    --config cup_to_sink/configs/cup_to_sink.yaml \
+    --num-episodes 20 --seed-start 10000
+```
+
+The eval loop matches the training data: 25 Hz control (one action per
+`dataset.record_every`=8 physics ticks), obs = 8-d state + 4×256×256 RGB,
+action = 7 joint targets + gripper width. `--seed-start 10000` keeps eval
+initial conditions disjoint from the training seeds. Use the same config the
+training data was collected with (it is stored in each episode's HDF5
+`meta/config_yaml` if in doubt).
+
+Outputs (`datasets/eval_policy/`): `eval_log.json` (per-episode success,
+xy distance to sink, steps; running success rate) and `episode_<seed>.mp4`
+(2×2 camera-grid rollout video). `--no-video` to skip videos, `--viewer` to
+watch live, `--max-steps` to change the 600-step (24 s) episode cap.
 
 ### Convert to LeRobot format
 
