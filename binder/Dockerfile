@@ -90,6 +90,16 @@ RUN git config --global --add safe.directory ${REPO_DIR}
 RUN cd ${REPO_DIR}/nav2_ws && \
     bash -c "source /opt/ros/jazzy/setup.bash && colcon build --symlink-install"
 
+# XDG autostart: run examples/apartment.py automatically when the desktop
+# session (display) comes up. The X server here is started on demand by
+# jupyter-remote-desktop-proxy -- whose xstartup is `exec dbus-launch
+# xfce4-session` -- so this fires the first time the user opens the "Desktop"
+# tab, which is the earliest moment a display exists for the non-headless sim.
+# Remove this file to disable auto-start.
+RUN chmod +x ${REPO_DIR}/binder/autostart-apartment.sh && \
+    mkdir -p ${HOME}/.config/autostart
+COPY --chown=${NB_USER}:users binder/IsaacSim-Apartment-autostart.desktop ${HOME}/.config/autostart/
+
 # Set Jupyterlab default directory
 WORKDIR ${REPO_DIR}
 # Set VSCODE default directory

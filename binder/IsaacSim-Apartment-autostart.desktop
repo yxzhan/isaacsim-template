@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=IsaacSim-Apartment-autostart
+Comment=Start the Isaac Sim apartment demo automatically once the desktop session (display) is up
+Exec=/home/jovyan/isaacsim-template/binder/autostart-apartment.sh
+Terminal=false
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
