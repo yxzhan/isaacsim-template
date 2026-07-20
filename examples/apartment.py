@@ -987,39 +987,6 @@ stretch_node = StretchROS(
 # In[ ]:
 
 
-import subprocess
-
-# Launch SLAM (slam_toolbox) + Nav2 from the prebuilt ROS workspace. The sim
-# loop below must be running so /scan, /odom and TF flow. Set a 2D Goal Pose in
-# RViz to navigate; the map is built live as the robot drives.
-os.environ.pop("PYTHONPATH", None)
-nav_launch = '''
-source /opt/ros/jazzy/setup.bash
-source ../nav2_ws/install/setup.bash
-ros2 launch stretch_nav2 slam_nav2.launch.py
-'''
-nav2_proc = subprocess.Popen(["bash", "-c", nav_launch],
-                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
-print("SLAM + Nav2 launching (slam_toolbox + nav2_bringup)...")
-
-
-# ## Open `rviz2`
-
-# In[ ]:
-
-
-import subprocess
-
-# RViz with the Nav2 config (scan, map, costmaps, robot TF, 2D Goal Pose).
-os.environ.pop("PYTHONPATH", None)
-launch = '''
-source /opt/ros/jazzy/setup.bash
-source ../nav2_ws/install/setup.bash
-rviz2 -d ./stretch.rviz
-'''
-subprocess.Popen(["bash", "-c", launch],
-                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
-
 
 # ## Run the simulation loop
 # 
