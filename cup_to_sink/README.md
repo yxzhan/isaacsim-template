@@ -116,6 +116,9 @@ success-rate reporting. Two processes, because lerobot lives in the system
 Python and the sim lives in the Isaac Sim Python:
 
 ```bash
+/isaac-sim/python.sh -m pip install h5py imageio-ffmpeg
+pip install lerobot[transformers-dep]==0.4.4
+
 # Terminal 1 — policy server (system python3, has lerobot):
 python3 -m cup_to_sink.policy_server \
     --checkpoint kitchen_imitation_learning/checkpoints/act_100000/pretrained_model
@@ -124,6 +127,14 @@ python3 -m cup_to_sink.policy_server \
 /isaac-sim/python.sh -m cup_to_sink.eval_policy \
     --config cup_to_sink/configs/cup_to_sink.yaml \
     --num-episodes 20 --seed-start 10000
+    --out eval_act_10000
+
+# Or with viewer:
+/isaac-sim/python.sh -m cup_to_sink.eval_policy \
+    --config cup_to_sink/configs/cup_to_sink.yaml \
+    --num-episodes 20 --seed-start 10000 \
+    --out eval_act_10000 \
+    --viewer
 ```
 
 The eval loop matches the training data: 25 Hz control (one action per
