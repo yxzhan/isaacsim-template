@@ -73,6 +73,8 @@ RUN sudo apt-get update && \
     sudo rm -rf /var/lib/apt/lists/*
 #============================================================#
 
+RUN /isaac-sim/python.sh -m pip install h5py imageio-ffmpeg
+
 # Install python packages
 USER ${NB_USER}
 COPY --chown=${NB_USER}:users binder/requirements.txt /tmp/requirements.txt
@@ -89,6 +91,13 @@ RUN git config --global --add safe.directory ${REPO_DIR}
 # apartment.ipynb "Launch SLAM + Nav2" cell can source it directly.
 RUN cd ${REPO_DIR}/nav2_ws && \
     bash -c "source /opt/ros/jazzy/setup.bash && colcon build --symlink-install"
+
+USER root
+RUN apt update && \
+    apt install -y git-lfs && \
+    git lfs install
+# RUN cd ${REPO_DIR} && \
+#     git clone https://github.com/zhiyuan-gao/kitchen_imitation_learning.git
 
 # Set Jupyterlab default directory
 WORKDIR ${REPO_DIR}

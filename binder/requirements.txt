@@ -11,3 +11,4 @@ PySide2
 opencv-python>=4.8
 urdf_parser_py
 ultralytics
+lerobot[transformers-dep]==0.4.4
